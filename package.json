@@ -37,6 +37,7 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.0",
+    "dotenv": "^16.5.0",  
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.24",
     "@nestjs/mapped-types": "*",
