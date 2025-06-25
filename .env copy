@@ -1,0 +1,19 @@
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=
+DB_DATABASE=logitrack
+
+# JWT Configuration
+JWT_SECRET=logitracksecret
+JWT_EXPIRATION=1d
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID=758010332680-vdc8oasnmq1brdg6e6t05p77j50hntlr.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/redirect
+
+# Application Configuration
+PORT=3000
+NODE_ENV=development
