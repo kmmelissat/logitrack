@@ -1,7 +1,9 @@
 import { Controller } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ScheduledRouteService } from './scheduled-route.service';
 
-@Controller('scheduled-route')
+@ApiTags('scheduled-routes')
+@Controller('scheduled-routes')
 export class ScheduledRouteController {
   constructor(private readonly scheduledRouteService: ScheduledRouteService) {}
 }
