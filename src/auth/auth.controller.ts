@@ -49,7 +49,7 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Google OAuth callback' })
   @ApiResponse({ status: 200, description: 'Google login successful' })
-  googleAuthCallback(@Req() req) {
-    return this.authService.login(req.user);
+  async googleAuthCallback(@Req() req) {
+    return this.authService.googleLogin(req);
   }
 }
