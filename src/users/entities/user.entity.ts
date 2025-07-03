@@ -7,8 +7,6 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Role } from '../../auth/enums/role.enum';
-import { Machine } from '../../machines/entities/machine.entity';
-import { RentalRequest } from '../../rentals/entities/rental-request.entity';
 
 @Entity('users')
 export class User {
@@ -36,15 +34,16 @@ export class User {
   @Column({
     type: 'enum',
     enum: Role,
-    default: Role.CUSTOMER,
+    default: Role.CONDUCTOR,
   })
   role: Role;
 
-  @OneToMany(() => Machine, (machine) => machine.createdBy)
-  machines: Machine[];
+  // Relaciones - usar lazy loading para evitar referencias circulares
+  @OneToMany('ScheduledRoute', 'driver')
+  assignedRoutes: Promise<any[]>;
 
-  @OneToMany(() => RentalRequest, (rentalRequest) => rentalRequest.user)
-  rentalRequests: RentalRequest[];
+  @OneToMany('VehicleCheckin', 'driver')
+  vehicleCheckins: Promise<any[]>;
 
   @CreateDateColumn()
   createdAt: Date;
