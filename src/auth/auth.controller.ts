@@ -45,11 +45,28 @@ export class AuthController {
     // This endpoint initiates the Google OAuth flow
   }
 
-  @Get('google/callback')
+  @Get('google/redirect')
   @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth callback' })
-  @ApiResponse({ status: 200, description: 'Google login successful' })
-  async googleAuthCallback(@Req() req) {
+  @ApiOperation({ summary: 'Google OAuth redirect/callback' })
+  @ApiResponse({
+    status: 200,
+    description: 'Google login successful - returns user data and JWT token',
+    example: {
+      message: 'Google login successful',
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        picture: 'https://example.com/photo.jpg',
+        role: 'conductor',
+      },
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    },
+  })
+  googleAuthRedirect(
+    @Req() req,
+  ): Promise<{ message: string; user?: unknown; token?: string }> {
     return this.authService.googleLogin(req);
   }
 }
