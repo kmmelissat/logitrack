@@ -7,8 +7,8 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Role } from '../../auth/enums/role.enum';
-import { Machine } from '../../machines/entities/machine.entity';
-import { RentalRequest } from '../../rentals/entities/rental-request.entity';
+// import { Machine } from '../../machines/entities/machine.entity';
+// import { RentalRequest } from '../../rentals/entities/rental-request.entity';
 
 @Entity('users')
 export class User {
@@ -40,11 +40,11 @@ export class User {
   })
   role: Role;
 
-  @OneToMany(() => Machine, (machine) => machine.createdBy)
-  machines: Machine[];
+  // @OneToMany(() => Machine, (machine) => machine.createdBy)
+  // machines: Machine[];
 
-  @OneToMany(() => RentalRequest, (rentalRequest) => rentalRequest.user)
-  rentalRequests: RentalRequest[];
+  // @OneToMany(() => RentalRequest, (rentalRequest) => rentalRequest.user)
+  // rentalRequests: RentalRequest[];
 
   @CreateDateColumn()
   createdAt: Date;
