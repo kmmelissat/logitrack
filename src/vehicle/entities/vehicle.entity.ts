@@ -42,7 +42,7 @@ export class Vehicle {
   @Column({ nullable: true })
   fuelType: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'decimal', precision: 5, scale: 2 })
   capacity: number;
 
   @OneToMany(() => Maintenance, (maintenance) => maintenance.vehicle)
