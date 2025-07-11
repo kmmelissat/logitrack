@@ -11,6 +11,7 @@ import { GpsEventModule } from './gps-event/gps-event.module';
 import { VehicleCheckinModule } from './vehicle-checkin/vehicle-checkin.module';
 import { RoutePointModule } from './route-point/route-point.module';
 import { ScheduledRouteModule } from './scheduled-route/scheduled-route.module';
+import { MapsModule } from './maps/maps.module';
 
 // Entidades
 import { User } from './users/entities/user.entity';
@@ -58,6 +59,7 @@ import { GpsEvent } from './gps-event/entities/gps-event.entity';
     RoutePointModule,
     VehicleCheckinModule,
     GpsEventModule,
+    MapsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
