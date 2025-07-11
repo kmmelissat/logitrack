@@ -66,15 +66,6 @@ export class VehicleController {
     return this.vehicleService.findOne(+id);
   }
 
-  @Get('plate/:plateNumber')
-  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
-  @ApiOperation({ summary: 'Get a vehicle by plate number' })
-  @ApiResponse({ status: 200, description: 'Returns the vehicle' })
-  @ApiResponse({ status: 404, description: 'Vehicle not found' })
-  findByPlateNumber(@Param('plateNumber') plateNumber: string) {
-    return this.vehicleService.findByPlateNumber(plateNumber);
-  }
-
   @Patch(':id')
   @Roles(Role.ADMIN, Role.LOGISTICA)
   @ApiOperation({ summary: 'Update a vehicle' })

@@ -41,7 +41,7 @@ export class Maintenance {
   @Column({ default: true })
   isCompleted: boolean;
 
-  @ManyToOne(() => Vehicle, (vehicle) => vehicle.maintenances)
+  @ManyToOne(() => Vehicle, (vehicle) => vehicle.maintenances, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'vehicleId' })
   vehicle: Vehicle;
 
