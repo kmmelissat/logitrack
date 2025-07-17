@@ -1,14 +1,5 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
-import { Vehicle } from '../../vehicle/entities/vehicle.entity';
-import { ScheduledRoute } from '../../scheduled-route/entities/scheduled-route.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum EventType {
   LOCATION = 'location',
@@ -29,53 +20,59 @@ export enum AlertSeverity {
   CRITICAL = 'critical',
 }
 
-@Entity('gps_events')
-export class GpsEvent {
-  @PrimaryGeneratedColumn()
-  id: number;
+export type GpsEventDocument = GpsEvent & Document;
 
-  @Column({
-    type: 'enum',
+@Schema({
+  collection: 'gps_events',
+  timestamps: true,
+})
+export class GpsEvent {
+  _id: Types.ObjectId;
+
+  @Prop({
+    type: String,
     enum: EventType,
     default: EventType.LOCATION,
   })
   eventType: EventType;
 
-  @Column({ type: 'timestamp' })
+  @Prop({ required: true, type: Date })
   timestamp: Date;
 
-  @Column({ type: 'decimal', precision: 10, scale: 8 })
+  @Prop({ required: true, type: Number })
   latitude: number;
 
-  @Column({ type: 'decimal', precision: 11, scale: 8 })
+  @Prop({ required: true, type: Number })
   longitude: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  speed: number;
+  @Prop({ type: Number })
+  speed?: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  heading: number;
+  @Prop({ type: Number })
+  heading?: number;
 
-  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
-  altitude: number;
+  @Prop({ type: Number })
+  altitude?: number;
 
-  @Column({ type: 'int', nullable: true })
-  satellites: number;
+  @Prop({ type: Number })
+  satellites?: number;
 
-  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
-  accuracy: number;
+  @Prop({ type: Number })
+  accuracy?: number;
 
-  @Column({
-    type: 'enum',
+  @Prop({
+    type: String,
     enum: AlertSeverity,
-    nullable: true,
   })
-  severity: AlertSeverity;
+  severity?: AlertSeverity;
 
-  @Column({ type: 'text', nullable: true })
-  message: string;
+  @Prop()
+  message?: string;
 
-  @Column({ type: 'json' })
+  @Prop({
+    type: Object,
+    required: true,
+  })
   eventData: {
     coordinates: {
       lat: number;
@@ -124,37 +121,24 @@ export class GpsEvent {
     };
   };
 
-  @Column({ default: false })
+  @Prop({ default: false })
   isProcessed: boolean;
 
-  @Column({ default: false })
+  @Prop({ default: false })
   isAlert: boolean;
 
-  @Column({ default: false })
+  @Prop({ default: false })
   isAcknowledged: boolean;
 
-  // Relaciones
-  @ManyToOne(() => Vehicle, (vehicle) => vehicle.gpsEvents)
-  @JoinColumn({ name: 'vehicleId' })
-  vehicle: Vehicle;
+  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  vehicleId: Types.ObjectId;
 
-  @Column()
-  vehicleId: number;
+  @Prop({ type: Types.ObjectId, ref: 'ScheduledRoute' })
+  scheduledRouteId?: Types.ObjectId;
 
-  @ManyToOne(
-    () => ScheduledRoute,
-    (scheduledRoute) => scheduledRoute.gpsEvents,
-    { nullable: true },
-  )
-  @JoinColumn({ name: 'scheduledRouteId' })
-  scheduledRoute: ScheduledRoute;
-
-  @Column({ nullable: true })
-  scheduledRouteId: number;
-
-  @CreateDateColumn()
+  // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
-
-  @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const GpsEventSchema = SchemaFactory.createForClass(GpsEvent);

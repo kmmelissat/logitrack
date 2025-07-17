@@ -1,53 +1,44 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-} from 'typeorm';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 import { Role } from '../../auth/enums/role.enum';
 
-@Entity('users')
-export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
+export type UserDocument = User & Document;
 
-  @Column({ unique: true })
+@Schema({
+  collection: 'users',
+  timestamps: true,
+})
+export class User {
+  _id: Types.ObjectId;
+
+  @Prop({ required: true, unique: true })
   email: string;
 
-  @Column()
+  @Prop({ required: true })
   firstName: string;
 
-  @Column()
+  @Prop({ required: true })
   lastName: string;
 
-  @Column({ nullable: true })
-  picture: string;
+  @Prop()
+  picture?: string;
 
-  @Column({ nullable: true })
-  googleId: string;
+  @Prop()
+  googleId?: string;
 
-  @Column({ nullable: true })
-  password: string;
+  @Prop()
+  password?: string;
 
-  @Column({
-    type: 'enum',
+  @Prop({
+    type: String,
     enum: Role,
     default: Role.CONDUCTOR,
   })
   role: Role;
 
-  // Relaciones - usar lazy loading para evitar referencias circulares
-  @OneToMany('ScheduledRoute', 'driver')
-  assignedRoutes: Promise<any[]>;
-
-  @OneToMany('VehicleCheckin', 'driver')
-  vehicleCheckins: Promise<any[]>;
-
-  @CreateDateColumn()
+  // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
-
-  @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const UserSchema = SchemaFactory.createForClass(User);

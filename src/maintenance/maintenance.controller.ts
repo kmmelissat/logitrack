@@ -66,7 +66,7 @@ export class MaintenanceController {
     @Query('pending') pending?: string,
   ) {
     if (vehicleId) {
-      return this.maintenanceService.findByVehicle(+vehicleId);
+      return this.maintenanceService.findByVehicle(vehicleId);
     }
     if (type) {
       return this.maintenanceService.findByType(type);
@@ -83,7 +83,7 @@ export class MaintenanceController {
   @ApiResponse({ status: 200, description: 'Returns the maintenance record' })
   @ApiResponse({ status: 404, description: 'Maintenance not found' })
   findOne(@Param('id') id: string) {
-    return this.maintenanceService.findOne(+id);
+    return this.maintenanceService.findOne(id);
   }
 
   @Patch(':id')
@@ -95,7 +95,7 @@ export class MaintenanceController {
     @Param('id') id: string,
     @Body() updateMaintenanceDto: UpdateMaintenanceDto,
   ) {
-    return this.maintenanceService.update(+id, updateMaintenanceDto);
+    return this.maintenanceService.update(id, updateMaintenanceDto);
   }
 
   @Delete(':id')
@@ -104,6 +104,6 @@ export class MaintenanceController {
   @ApiResponse({ status: 200, description: 'Maintenance deleted successfully' })
   @ApiResponse({ status: 404, description: 'Maintenance not found' })
   remove(@Param('id') id: string) {
-    return this.maintenanceService.remove(+id);
+    return this.maintenanceService.remove(id);
   }
 }

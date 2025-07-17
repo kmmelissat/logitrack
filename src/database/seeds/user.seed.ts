@@ -1,14 +1,17 @@
-import { DataSource } from 'typeorm';
+import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
-import { User } from '../../users/entities/user.entity';
+import { User, UserSchema } from '../../users/entities/user.entity';
 import { Role } from '../../auth/enums/role.enum';
+import * as mongoose from 'mongoose';
 
 export class UserSeeder {
-  constructor(private dataSource: DataSource) {}
+  private userModel: Model<User>;
+
+  constructor() {
+    this.userModel = mongoose.model(User.name, UserSchema);
+  }
 
   async run(): Promise<void> {
-    const userRepository = this.dataSource.getRepository(User);
-
     // Sample users with different roles
     const usersToCreate = [
       {
@@ -52,13 +55,13 @@ export class UserSeeder {
 
     for (const userData of usersToCreate) {
       // Check if user already exists
-      const existingUser = await userRepository.findOne({
-        where: { email: userData.email },
-      });
+      const existingUser = await this.userModel
+        .findOne({ email: userData.email })
+        .exec();
 
       if (!existingUser) {
-        const user = userRepository.create(userData);
-        await userRepository.save(user);
+        const user = new this.userModel(userData);
+        await user.save();
         console.log(
           `✅ Created user: ${userData.firstName} ${userData.lastName} (${userData.role})`,
         );

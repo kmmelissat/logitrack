@@ -1,13 +1,16 @@
-import { DataSource } from 'typeorm';
-import { Vehicle } from '../../vehicle/entities/vehicle.entity';
+import { Model } from 'mongoose';
+import { Vehicle, VehicleSchema } from '../../vehicle/entities/vehicle.entity';
 import { VehicleStatus } from '../../vehicle/enums/vehicle-status.enum';
+import * as mongoose from 'mongoose';
 
 export class VehicleSeeder {
-  constructor(private dataSource: DataSource) {}
+  private vehicleModel: Model<Vehicle>;
+
+  constructor() {
+    this.vehicleModel = mongoose.model(Vehicle.name, VehicleSchema);
+  }
 
   async run(): Promise<void> {
-    const vehicleRepository = this.dataSource.getRepository(Vehicle);
-
     // Sample vehicles for testing
     const vehiclesToCreate = [
       {
@@ -71,13 +74,13 @@ export class VehicleSeeder {
 
     for (const vehicleData of vehiclesToCreate) {
       // Check if vehicle already exists
-      const existingVehicle = await vehicleRepository.findOne({
-        where: { plateNumber: vehicleData.plateNumber },
-      });
+      const existingVehicle = await this.vehicleModel
+        .findOne({ plateNumber: vehicleData.plateNumber })
+        .exec();
 
       if (!existingVehicle) {
-        const vehicle = vehicleRepository.create(vehicleData);
-        await vehicleRepository.save(vehicle);
+        const vehicle = new this.vehicleModel(vehicleData);
+        await vehicle.save();
         console.log(
           `✅ Created vehicle: ${vehicleData.plateNumber} - ${vehicleData.brand} ${vehicleData.model} (${vehicleData.status})`,
         );

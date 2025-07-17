@@ -1,52 +1,25 @@
-import { DataSource } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
+import * as mongoose from 'mongoose';
 import { UserSeeder } from './user.seed';
 import { VehicleSeeder } from './vehicle.seed';
-
-// Import all entities
-import { User } from '../../users/entities/user.entity';
-import { Vehicle } from '../../vehicle/entities/vehicle.entity';
-import { Maintenance } from '../../maintenance/entities/maintenance.entity';
-import { ScheduledRoute } from '../../scheduled-route/entities/scheduled-route.entity';
-import { RoutePoint } from '../../route-point/entities/route-point.entity';
-import { VehicleCheckin } from '../../vehicle-checkin/entities/vehicle-checkin.entity';
-import { GpsEvent } from '../../gps-event/entities/gps-event.entity';
 
 async function runSeeds() {
   console.log('🚀 Starting database seeding...');
 
-  // Create DataSource configuration
-  const dataSource = new DataSource({
-    type: 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    username: process.env.DB_USERNAME || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_NAME || 'logitrack',
-    entities: [
-      User,
-      Vehicle,
-      Maintenance,
-      ScheduledRoute,
-      RoutePoint,
-      VehicleCheckin,
-      GpsEvent,
-    ],
-    synchronize: false, // Don't auto-sync in production
-    logging: false,
-  });
+  // Create MongoDB connection
+  const mongoUri =
+    process.env.MONGODB_URI || 'mongodb://localhost:27017/logitrack';
 
   try {
     // Initialize the connection
-    await dataSource.initialize();
+    await mongoose.connect(mongoUri);
     console.log('✅ Database connection established');
 
     // Run user seeder
-    const userSeeder = new UserSeeder(dataSource);
+    const userSeeder = new UserSeeder();
     await userSeeder.run();
 
     // Run vehicle seeder
-    const vehicleSeeder = new VehicleSeeder(dataSource);
+    const vehicleSeeder = new VehicleSeeder();
     await vehicleSeeder.run();
 
     console.log('🎉 All seeds completed successfully!');
@@ -55,7 +28,7 @@ async function runSeeds() {
     process.exit(1);
   } finally {
     // Close the connection
-    await dataSource.destroy();
+    await mongoose.disconnect();
     console.log('🔌 Database connection closed');
     process.exit(0);
   }

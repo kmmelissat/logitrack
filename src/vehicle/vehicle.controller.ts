@@ -63,7 +63,7 @@ export class VehicleController {
   @ApiResponse({ status: 200, description: 'Returns the vehicle' })
   @ApiResponse({ status: 404, description: 'Vehicle not found' })
   findOne(@Param('id') id: string) {
-    return this.vehicleService.findOne(+id);
+    return this.vehicleService.findOne(id);
   }
 
   @Get('plate/:plateNumber')
@@ -81,7 +81,7 @@ export class VehicleController {
   @ApiResponse({ status: 200, description: 'Vehicle updated successfully' })
   @ApiResponse({ status: 404, description: 'Vehicle not found' })
   update(@Param('id') id: string, @Body() updateVehicleDto: UpdateVehicleDto) {
-    return this.vehicleService.update(+id, updateVehicleDto);
+    return this.vehicleService.update(id, updateVehicleDto);
   }
 
   @Delete(':id')
@@ -90,6 +90,6 @@ export class VehicleController {
   @ApiResponse({ status: 200, description: 'Vehicle deleted successfully' })
   @ApiResponse({ status: 404, description: 'Vehicle not found' })
   remove(@Param('id') id: string) {
-    return this.vehicleService.remove(+id);
+    return this.vehicleService.remove(id);
   }
 }

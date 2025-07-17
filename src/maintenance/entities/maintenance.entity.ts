@@ -1,56 +1,48 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
-import { Vehicle } from '../../vehicle/entities/vehicle.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
-@Entity('maintenances')
+export type MaintenanceDocument = Maintenance & Document;
+
+@Schema({
+  collection: 'maintenances',
+  timestamps: true,
+})
 export class Maintenance {
-  @PrimaryGeneratedColumn()
-  id: number;
+  _id: Types.ObjectId;
 
-  @Column()
+  @Prop({ required: true })
   type: string;
 
-  @Column('text')
+  @Prop({ required: true })
   description: string;
 
-  @Column({ type: 'date' })
+  @Prop({ required: true, type: Date })
   maintenanceDate: Date;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Prop({ required: true, type: Number })
   cost: number;
 
-  @Column({ nullable: true })
-  provider: string;
+  @Prop()
+  provider?: string;
 
-  @Column({ nullable: true })
-  mileageAtMaintenance: number;
+  @Prop()
+  mileageAtMaintenance?: number;
 
-  @Column({ nullable: true })
-  nextMaintenanceDate: Date;
+  @Prop({ type: Date })
+  nextMaintenanceDate?: Date;
 
-  @Column({ nullable: true })
-  nextMaintenanceMileage: number;
+  @Prop()
+  nextMaintenanceMileage?: number;
 
-  @Column({ default: true })
+  @Prop({ default: true })
   isCompleted: boolean;
 
-  @ManyToOne(() => Vehicle, (vehicle) => vehicle.maintenances)
-  @JoinColumn({ name: 'vehicleId' })
-  vehicle: Vehicle;
+  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  vehicleId: Types.ObjectId;
 
-  @Column()
-  vehicleId: number;
-
-  @CreateDateColumn()
+  // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
-
-  @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const MaintenanceSchema = SchemaFactory.createForClass(Maintenance);

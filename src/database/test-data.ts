@@ -1,44 +1,25 @@
-import { DataSource } from 'typeorm';
-import { User } from '../users/entities/user.entity';
-import { Vehicle } from '../vehicle/entities/vehicle.entity';
-import { Maintenance } from '../maintenance/entities/maintenance.entity';
-import { ScheduledRoute } from '../scheduled-route/entities/scheduled-route.entity';
-import { RoutePoint } from '../route-point/entities/route-point.entity';
-import { VehicleCheckin } from '../vehicle-checkin/entities/vehicle-checkin.entity';
-import { GpsEvent } from '../gps-event/entities/gps-event.entity';
+import * as mongoose from 'mongoose';
+import { User, UserSchema } from '../users/entities/user.entity';
+import { Vehicle, VehicleSchema } from '../vehicle/entities/vehicle.entity';
 
 async function testData() {
   console.log('🔍 Testing seeded data...');
 
-  // Create DataSource configuration
-  const dataSource = new DataSource({
-    type: 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    username: process.env.DB_USERNAME || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_NAME || 'logitrack',
-    entities: [
-      User,
-      Vehicle,
-      Maintenance,
-      ScheduledRoute,
-      RoutePoint,
-      VehicleCheckin,
-      GpsEvent,
-    ],
-    synchronize: false,
-    logging: false,
-  });
+  // Create MongoDB connection
+  const mongoUri =
+    process.env.MONGODB_URI || 'mongodb://localhost:27017/logitrack';
 
   try {
     // Initialize the connection
-    await dataSource.initialize();
+    await mongoose.connect(mongoUri);
     console.log('✅ Database connection established');
 
+    // Create models
+    const UserModel = mongoose.model(User.name, UserSchema);
+    const VehicleModel = mongoose.model(Vehicle.name, VehicleSchema);
+
     // Test users
-    const userRepository = dataSource.getRepository(User);
-    const users = await userRepository.find();
+    const users = await UserModel.find().exec();
     console.log('\n👥 Users in database:');
     users.forEach((user) => {
       console.log(
@@ -47,8 +28,7 @@ async function testData() {
     });
 
     // Test vehicles
-    const vehicleRepository = dataSource.getRepository(Vehicle);
-    const vehicles = await vehicleRepository.find();
+    const vehicles = await VehicleModel.find().exec();
     console.log('\n🚚 Vehicles in database:');
     vehicles.forEach((vehicle) => {
       console.log(
@@ -62,7 +42,7 @@ async function testData() {
     process.exit(1);
   } finally {
     // Close the connection
-    await dataSource.destroy();
+    await mongoose.disconnect();
     console.log('🔌 Database connection closed');
     process.exit(0);
   }
