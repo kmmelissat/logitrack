@@ -1,6 +1,10 @@
 import * as mongoose from 'mongoose';
+import * as dotenv from 'dotenv';
 import { User, UserSchema } from '../users/entities/user.entity';
 import { Vehicle, VehicleSchema } from '../vehicle/entities/vehicle.entity';
+
+// Load environment variables
+dotenv.config();
 
 async function testData() {
   console.log('🔍 Testing seeded data...');
@@ -8,6 +12,8 @@ async function testData() {
   // Create MongoDB connection
   const mongoUri =
     process.env.MONGODB_URI || 'mongodb://localhost:27017/logitrack';
+  
+  console.log('📊 Connecting to:', mongoUri.includes('mongodb+srv') ? 'MongoDB Atlas' : 'Local MongoDB');
 
   try {
     // Initialize the connection

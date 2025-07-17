@@ -1,5 +1,9 @@
 import * as mongoose from 'mongoose';
+import * as dotenv from 'dotenv';
 import { UserSeeder } from './user.seed';
+
+// Load environment variables
+dotenv.config();
 
 async function seedUsers() {
   console.log('🚀 Starting user seeding...');
@@ -7,6 +11,8 @@ async function seedUsers() {
   // Create MongoDB connection
   const mongoUri =
     process.env.MONGODB_URI || 'mongodb://localhost:27017/logitrack';
+  
+  console.log('📊 Connecting to:', mongoUri.includes('mongodb+srv') ? 'MongoDB Atlas' : 'Local MongoDB');
 
   try {
     // Initialize the connection
