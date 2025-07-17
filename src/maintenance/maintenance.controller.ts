@@ -36,7 +36,7 @@ export class MaintenanceController {
   @ApiResponse({ status: 200, description: 'Vehicle maintenance history' })
   @ApiResponse({ status: 404, description: 'Vehicle or maintenance not found' })
   getMaintenanceByVehicle(@Param('id') id: string) {
-    return this.maintenanceService.findByVehicle(+id);
+    return this.maintenanceService.findByVehicle(id);
   }
 
   @Post('/vehicles/:id/maintenance')
@@ -49,7 +49,7 @@ export class MaintenanceController {
     @Param('id') id: string,
     @Body() createMaintenanceDto: CreateMaintenanceDto,
   ) {
-    return this.maintenanceService.create({ ...createMaintenanceDto, vehicleId: +id });
+    return this.maintenanceService.create({ ...createMaintenanceDto, vehicleId: id });
   }
 
   @Get(':id')
@@ -58,7 +58,7 @@ export class MaintenanceController {
   @ApiResponse({ status: 200, description: 'Maintenance details' })
   @ApiResponse({ status: 404, description: 'Maintenance not found' })
   findOne(@Param('id') id: string) {
-    return this.maintenanceService.findOne(+id);
+    return this.maintenanceService.findOne(id);
   }
 
   @Patch(':id')
@@ -70,7 +70,7 @@ export class MaintenanceController {
     @Param('id') id: string,
     @Body() updateMaintenanceDto: UpdateMaintenanceDto,
   ) {
-    return this.maintenanceService.update(+id, updateMaintenanceDto);
+    return this.maintenanceService.update(id, updateMaintenanceDto);
   }
 
   @Get()
