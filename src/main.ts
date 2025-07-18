@@ -41,11 +41,11 @@ async function bootstrap() {
     },
   });
 
+  await app.listen(process.env.PORT ?? 3000);
+
   console.log('🚛 LogiTrack API iniciada');
   console.log(
     `📖 Documentación Swagger: http://localhost:${process.env.PORT ?? 3000}/api`,
   );
-
-  await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
