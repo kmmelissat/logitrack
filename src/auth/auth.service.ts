@@ -49,12 +49,16 @@ export class AuthService {
     });
 
     // Generate JWT token
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = {
+      sub: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    };
     const token = this.jwtService.sign(payload);
 
     return {
       user: {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -74,18 +78,25 @@ export class AuthService {
     }
 
     // Verify password
+    if (!user.password) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Generate JWT token
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = {
+      sub: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    };
     const token = this.jwtService.sign(payload);
 
     return {
       user: {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -95,7 +106,7 @@ export class AuthService {
     };
   }
 
-  async validateUser(id: number): Promise<User> {
+  async validateUser(id: string): Promise<User> {
     return this.usersService.findOne(id);
   }
 
@@ -124,7 +135,7 @@ export class AuthService {
       });
     } else if (!user.googleId) {
       // Link existing account with Google
-      await this.usersService.update(user.id, {
+      await this.usersService.update(user._id.toString(), {
         googleId,
         picture: picture || user.picture,
       });
@@ -132,7 +143,7 @@ export class AuthService {
 
     // Generate JWT token
     const payload = {
-      sub: user.id,
+      sub: user._id.toString(),
       email: user.email,
       name: `${user.firstName} ${user.lastName}`,
       role: user.role,
@@ -142,7 +153,7 @@ export class AuthService {
     return {
       message: 'Google login successful',
       user: {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,

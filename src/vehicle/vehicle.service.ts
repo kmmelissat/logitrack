@@ -1,33 +1,28 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Vehicle } from './entities/vehicle.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Vehicle, VehicleDocument } from './entities/vehicle.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 
 @Injectable()
 export class VehicleService {
   constructor(
-    @InjectRepository(Vehicle)
-    private vehicleRepository: Repository<Vehicle>,
+    @InjectModel(Vehicle.name)
+    private vehicleModel: Model<VehicleDocument>,
   ) {}
 
   async create(createVehicleDto: CreateVehicleDto): Promise<Vehicle> {
-    const vehicle = this.vehicleRepository.create(createVehicleDto);
-    return this.vehicleRepository.save(vehicle);
+    const vehicle = new this.vehicleModel(createVehicleDto);
+    return vehicle.save();
   }
 
   async findAll(): Promise<Vehicle[]> {
-    return this.vehicleRepository.find({
-      relations: ['maintenances'],
-    });
+    return this.vehicleModel.find().exec();
   }
 
-  async findOne(id: number): Promise<Vehicle> {
-    const vehicle = await this.vehicleRepository.findOne({
-      where: { id },
-      relations: ['maintenances'],
-    });
+  async findOne(id: string): Promise<Vehicle> {
+    const vehicle = await this.vehicleModel.findById(id).exec();
 
     if (!vehicle) {
       throw new NotFoundException(`Vehicle with ID ${id} not found`);
@@ -37,30 +32,30 @@ export class VehicleService {
   }
 
   async update(
-    id: number,
+    id: string,
     updateVehicleDto: UpdateVehicleDto,
   ): Promise<Vehicle> {
-    const vehicle = await this.findOne(id);
-    Object.assign(vehicle, updateVehicleDto);
-    return this.vehicleRepository.save(vehicle);
+    const vehicle = await this.vehicleModel
+      .findByIdAndUpdate(id, updateVehicleDto, { new: true })
+      .exec();
+    if (!vehicle) {
+      throw new NotFoundException(`Vehicle with ID ${id} not found`);
+    }
+    return vehicle;
   }
 
-  async remove(id: number): Promise<void> {
-    const vehicle = await this.findOne(id);
-    await this.vehicleRepository.remove(vehicle);
+  async remove(id: string): Promise<void> {
+    const result = await this.vehicleModel.findByIdAndDelete(id).exec();
+    if (!result) {
+      throw new NotFoundException(`Vehicle with ID ${id} not found`);
+    }
   }
 
   async findByPlateNumber(plateNumber: string): Promise<Vehicle | null> {
-    return this.vehicleRepository.findOne({
-      where: { plateNumber },
-      relations: ['maintenances'],
-    });
+    return this.vehicleModel.findOne({ plateNumber }).exec();
   }
 
   async findByStatus(status: string): Promise<Vehicle[]> {
-    return this.vehicleRepository.find({
-      where: { status: status as any },
-      relations: ['maintenances'],
-    });
+    return this.vehicleModel.find({ status }).exec();
   }
 }

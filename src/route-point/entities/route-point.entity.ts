@@ -1,13 +1,5 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
-import { ScheduledRoute } from '../../scheduled-route/entities/scheduled-route.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum PointType {
   ORIGEN = 'origen',
@@ -16,74 +8,70 @@ export enum PointType {
   CHECKPOINT = 'checkpoint',
 }
 
-@Entity('route_points')
-export class RoutePoint {
-  @PrimaryGeneratedColumn()
-  id: number;
+export type RoutePointDocument = RoutePoint & Document;
 
-  @Column()
+@Schema({
+  collection: 'route_points',
+  timestamps: true,
+})
+export class RoutePoint {
+  _id: Types.ObjectId;
+
+  @Prop({ required: true })
   name: string;
 
-  @Column('text', { nullable: true })
-  description: string;
+  @Prop()
+  description?: string;
 
-  @Column({
-    type: 'enum',
+  @Prop({
+    type: String,
     enum: PointType,
     default: PointType.PARADA,
   })
   type: PointType;
 
-  @Column({ type: 'decimal', precision: 10, scale: 8 })
+  @Prop({ required: true, type: Number })
   latitude: number;
 
-  @Column({ type: 'decimal', precision: 11, scale: 8 })
+  @Prop({ required: true, type: Number })
   longitude: number;
 
-  @Column({ nullable: true })
-  address: string;
+  @Prop()
+  address?: string;
 
-  @Column({ type: 'int', default: 0 })
+  @Prop({ type: Number, default: 0 })
   sequenceOrder: number;
 
-  @Column({ type: 'timestamp', nullable: true })
-  plannedArrivalTime: Date;
+  @Prop({ type: Date })
+  plannedArrivalTime?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  actualArrivalTime: Date;
+  @Prop({ type: Date })
+  actualArrivalTime?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  plannedDepartureTime: Date;
+  @Prop({ type: Date })
+  plannedDepartureTime?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  actualDepartureTime: Date;
+  @Prop({ type: Date })
+  actualDepartureTime?: Date;
 
-  @Column({ type: 'int', nullable: true })
-  estimatedStayMinutes: number;
+  @Prop({ type: Number })
+  estimatedStayMinutes?: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  radiusMeters: number;
+  @Prop({ type: Number })
+  radiusMeters?: number;
 
-  @Column({ default: false })
+  @Prop({ default: false })
   isCompleted: boolean;
 
-  @Column({ type: 'text', nullable: true })
-  notes: string;
+  @Prop()
+  notes?: string;
 
-  // Relación
-  @ManyToOne(
-    () => ScheduledRoute,
-    (scheduledRoute) => scheduledRoute.routePoints,
-  )
-  @JoinColumn({ name: 'scheduledRouteId' })
-  scheduledRoute: ScheduledRoute;
+  @Prop({ type: Types.ObjectId, ref: 'ScheduledRoute', required: true })
+  scheduledRouteId: Types.ObjectId;
 
-  @Column()
-  scheduledRouteId: number;
-
-  @CreateDateColumn()
+  // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
-
-  @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const RoutePointSchema = SchemaFactory.createForClass(RoutePoint);

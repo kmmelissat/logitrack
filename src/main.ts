@@ -41,11 +41,13 @@ async function bootstrap() {
     },
   });
 
-  console.log('🚛 LogiTrack API iniciada');
-  console.log(
-    `📖 Documentación Swagger: http://localhost:${process.env.PORT ?? 3000}/api`,
-  );
-
   await app.listen(process.env.PORT ?? 3000);
+
+  console.log('🚛 LogiTrack API iniciada');
+  console.log('🔑 Google Maps API Key:', process.env.GOOGLE_MAPS_API_KEY);
+  console.log('🏠 Port:', process.env.PORT ?? 3000);
+  const url = `http://localhost:${process.env.PORT ?? 3000}/api`;
+  console.log(`📖 Documentación Swagger: ${url}`);
+  console.log(`🔗 URL: ${url}`);
 }
 bootstrap();

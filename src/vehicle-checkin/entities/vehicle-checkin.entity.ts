@@ -1,55 +1,52 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
-import { Vehicle } from '../../vehicle/entities/vehicle.entity';
-import { User } from '../../users/entities/user.entity';
-import { ScheduledRoute } from '../../scheduled-route/entities/scheduled-route.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum CheckinType {
   CHECK_IN = 'check_in',
   CHECK_OUT = 'check_out',
 }
 
-@Entity('vehicle_checkins')
-export class VehicleCheckin {
-  @PrimaryGeneratedColumn()
-  id: number;
+export type VehicleCheckinDocument = VehicleCheckin & Document;
 
-  @Column({
-    type: 'enum',
+@Schema({
+  collection: 'vehicle_checkins',
+  timestamps: true,
+})
+export class VehicleCheckin {
+  _id: Types.ObjectId;
+
+  @Prop({
+    type: String,
     enum: CheckinType,
+    required: true,
   })
   type: CheckinType;
 
-  @Column({ type: 'timestamp' })
+  @Prop({ required: true, type: Date })
   timestamp: Date;
 
-  @Column({ type: 'decimal', precision: 10, scale: 8, nullable: true })
-  latitude: number;
+  @Prop({ type: Number })
+  latitude?: number;
 
-  @Column({ type: 'decimal', precision: 11, scale: 8, nullable: true })
-  longitude: number;
+  @Prop({ type: Number })
+  longitude?: number;
 
-  @Column({ nullable: true })
-  location: string;
+  @Prop()
+  location?: string;
 
-  @Column({ type: 'int', nullable: true })
-  mileage: number;
+  @Prop({ type: Number })
+  mileage?: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  fuelLevel: number;
+  @Prop({ type: Number })
+  fuelLevel?: number;
 
-  @Column({ type: 'text', nullable: true })
-  notes: string;
+  @Prop()
+  notes?: string;
 
-  @Column({ type: 'json', nullable: true })
-  vehicleCondition: {
+  @Prop({
+    type: Object,
+  })
+  vehicleCondition?: {
     engineOk: boolean;
     tiresOk: boolean;
     lightsOk: boolean;
@@ -58,41 +55,25 @@ export class VehicleCheckin {
     issues?: string[];
   };
 
-  @Column({ type: 'json', nullable: true })
-  photos: string[];
+  @Prop({ type: [String] })
+  photos?: string[];
 
-  @Column({ default: true })
+  @Prop({ default: true })
   isValid: boolean;
 
-  // Relaciones
-  @ManyToOne(() => Vehicle, (vehicle) => vehicle.vehicleCheckins)
-  @JoinColumn({ name: 'vehicleId' })
-  vehicle: Vehicle;
+  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  vehicleId: Types.ObjectId;
 
-  @Column()
-  vehicleId: number;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  driverId: Types.ObjectId;
 
-  @ManyToOne(() => User, (user) => user.vehicleCheckins)
-  @JoinColumn({ name: 'driverId' })
-  driver: User;
+  @Prop({ type: Types.ObjectId, ref: 'ScheduledRoute' })
+  scheduledRouteId?: Types.ObjectId;
 
-  @Column()
-  driverId: number;
-
-  @ManyToOne(
-    () => ScheduledRoute,
-    (scheduledRoute) => scheduledRoute.vehicleCheckins,
-    { nullable: true },
-  )
-  @JoinColumn({ name: 'scheduledRouteId' })
-  scheduledRoute: ScheduledRoute;
-
-  @Column({ nullable: true })
-  scheduledRouteId: number;
-
-  @CreateDateColumn()
+  // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
-
-  @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const VehicleCheckinSchema =
+  SchemaFactory.createForClass(VehicleCheckin);

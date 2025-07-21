@@ -1,66 +1,50 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-} from 'typeorm';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 import { VehicleStatus } from '../enums/vehicle-status.enum';
-import { Maintenance } from '../../maintenance/entities/maintenance.entity';
 
-@Entity('vehicles')
+export type VehicleDocument = Vehicle & Document;
+
+@Schema({
+  collection: 'vehicles',
+  timestamps: true,
+})
 export class Vehicle {
-  @PrimaryGeneratedColumn()
-  id: number;
+  _id: Types.ObjectId;
 
-  @Column({ unique: true })
+  @Prop({ required: true, unique: true })
   plateNumber: string;
 
-  @Column()
+  @Prop({ required: true })
   brand: string;
 
-  @Column()
+  @Prop({ required: true })
   model: string;
 
-  @Column()
+  @Prop({ required: true })
   year: number;
 
-  @Column({ nullable: true })
-  vin: string;
+  @Prop()
+  vin?: string;
 
-  @Column({
-    type: 'enum',
+  @Prop({
+    type: String,
     enum: VehicleStatus,
     default: VehicleStatus.ACTIVO,
   })
   status: VehicleStatus;
 
-  @Column({ nullable: true })
-  mileage: number;
+  @Prop()
+  mileage?: number;
 
-  @Column({ nullable: true })
-  fuelType: string;
+  @Prop()
+  fuelType?: string;
 
-  @Column({ nullable: true })
-  capacity: number;
+  @Prop({ type: Number })
+  capacity?: number;
 
-  @OneToMany(() => Maintenance, (maintenance) => maintenance.vehicle)
-  maintenances: Maintenance[];
-
-  // Relaciones - usar lazy loading para evitar referencias circulares
-  @OneToMany('ScheduledRoute', 'vehicle')
-  scheduledRoutes: Promise<any[]>;
-
-  @OneToMany('VehicleCheckin', 'vehicle')
-  vehicleCheckins: Promise<any[]>;
-
-  @OneToMany('GpsEvent', 'vehicle')
-  gpsEvents: Promise<any[]>;
-
-  @CreateDateColumn()
+  // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
-
-  @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const VehicleSchema = SchemaFactory.createForClass(Vehicle);

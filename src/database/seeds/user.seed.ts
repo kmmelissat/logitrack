@@ -1,0 +1,75 @@
+import { Model } from 'mongoose';
+import * as bcrypt from 'bcrypt';
+import { User, UserSchema } from '../../users/entities/user.entity';
+import { Role } from '../../auth/enums/role.enum';
+import * as mongoose from 'mongoose';
+
+export class UserSeeder {
+  private userModel: Model<User>;
+
+  constructor() {
+    this.userModel = mongoose.model(User.name, UserSchema);
+  }
+
+  async run(): Promise<void> {
+    // Sample users with different roles
+    const usersToCreate = [
+      {
+        email: 'admin@logitrack.com',
+        firstName: 'Admin',
+        lastName: 'Sistema',
+        password: await bcrypt.hash('admin123', 10),
+        role: Role.ADMIN,
+      },
+      {
+        email: 'logistica@logitrack.com',
+        firstName: 'María',
+        lastName: 'Logística',
+        password: await bcrypt.hash('logistica123', 10),
+        role: Role.LOGISTICA,
+      },
+      {
+        email: 'conductor1@logitrack.com',
+        firstName: 'Juan',
+        lastName: 'Pérez',
+        password: await bcrypt.hash('conductor123', 10),
+        role: Role.CONDUCTOR,
+      },
+      {
+        email: 'conductor2@logitrack.com',
+        firstName: 'Carlos',
+        lastName: 'Rodríguez',
+        password: await bcrypt.hash('conductor123', 10),
+        role: Role.CONDUCTOR,
+      },
+      {
+        email: 'logistica2@logitrack.com',
+        firstName: 'Ana',
+        lastName: 'García',
+        password: await bcrypt.hash('logistica123', 10),
+        role: Role.LOGISTICA,
+      },
+    ];
+
+    console.log('🌱 Seeding users...');
+
+    for (const userData of usersToCreate) {
+      // Check if user already exists
+      const existingUser = await this.userModel
+        .findOne({ email: userData.email })
+        .exec();
+
+      if (!existingUser) {
+        const user = new this.userModel(userData);
+        await user.save();
+        console.log(
+          `✅ Created user: ${userData.firstName} ${userData.lastName} (${userData.role})`,
+        );
+      } else {
+        console.log(`⚠️  User ${userData.email} already exists, skipping...`);
+      }
+    }
+
+    console.log('🎉 User seeding completed!');
+  }
+}

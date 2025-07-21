@@ -1,35 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Maintenance } from './entities/maintenance.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import {
+  Maintenance,
+  MaintenanceDocument,
+} from './entities/maintenance.entity';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
 
 @Injectable()
 export class MaintenanceService {
   constructor(
-    @InjectRepository(Maintenance)
-    private maintenanceRepository: Repository<Maintenance>,
+    @InjectModel(Maintenance.name)
+    private maintenanceModel: Model<MaintenanceDocument>,
   ) {}
 
   async create(
     createMaintenanceDto: CreateMaintenanceDto,
   ): Promise<Maintenance> {
-    const maintenance = this.maintenanceRepository.create(createMaintenanceDto);
-    return this.maintenanceRepository.save(maintenance);
+    const maintenance = new this.maintenanceModel(createMaintenanceDto);
+    return maintenance.save();
   }
 
   async findAll(): Promise<Maintenance[]> {
-    return this.maintenanceRepository.find({
-      relations: ['vehicle'],
-    });
+    return this.maintenanceModel.find().populate('vehicleId').exec();
   }
 
-  async findOne(id: number): Promise<Maintenance> {
-    const maintenance = await this.maintenanceRepository.findOne({
-      where: { id },
-      relations: ['vehicle'],
-    });
+  async findOne(id: string): Promise<Maintenance> {
+    const maintenance = await this.maintenanceModel
+      .findById(id)
+      .populate('vehicleId')
+      .exec();
 
     if (!maintenance) {
       throw new NotFoundException(`Maintenance with ID ${id} not found`);
@@ -39,37 +40,41 @@ export class MaintenanceService {
   }
 
   async update(
-    id: number,
+    id: string,
     updateMaintenanceDto: UpdateMaintenanceDto,
   ): Promise<Maintenance> {
-    const maintenance = await this.findOne(id);
-    Object.assign(maintenance, updateMaintenanceDto);
-    return this.maintenanceRepository.save(maintenance);
+    const maintenance = await this.maintenanceModel
+      .findByIdAndUpdate(id, updateMaintenanceDto, { new: true })
+      .populate('vehicleId')
+      .exec();
+    if (!maintenance) {
+      throw new NotFoundException(`Maintenance with ID ${id} not found`);
+    }
+    return maintenance;
   }
 
-  async remove(id: number): Promise<void> {
-    const maintenance = await this.findOne(id);
-    await this.maintenanceRepository.remove(maintenance);
+  async remove(id: string): Promise<void> {
+    const result = await this.maintenanceModel.findByIdAndDelete(id).exec();
+    if (!result) {
+      throw new NotFoundException(`Maintenance with ID ${id} not found`);
+    }
   }
 
-  async findByVehicle(vehicleId: number): Promise<Maintenance[]> {
-    return this.maintenanceRepository.find({
-      where: { vehicleId },
-      relations: ['vehicle'],
-    });
+  async findByVehicle(vehicleId: string): Promise<Maintenance[]> {
+    return this.maintenanceModel
+      .find({ vehicleId: new Types.ObjectId(vehicleId) })
+      .populate('vehicleId')
+      .exec();
   }
 
   async findByType(type: string): Promise<Maintenance[]> {
-    return this.maintenanceRepository.find({
-      where: { type },
-      relations: ['vehicle'],
-    });
+    return this.maintenanceModel.find({ type }).populate('vehicleId').exec();
   }
 
   async findPendingMaintenances(): Promise<Maintenance[]> {
-    return this.maintenanceRepository.find({
-      where: { isCompleted: false },
-      relations: ['vehicle'],
-    });
+    return this.maintenanceModel
+      .find({ isCompleted: false })
+      .populate('vehicleId')
+      .exec();
   }
 }

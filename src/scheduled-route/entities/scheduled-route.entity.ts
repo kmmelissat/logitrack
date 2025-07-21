@@ -1,18 +1,5 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  OneToMany,
-  JoinColumn,
-} from 'typeorm';
-import { Vehicle } from '../../vehicle/entities/vehicle.entity';
-import { User } from '../../users/entities/user.entity';
-import { RoutePoint } from '../../route-point/entities/route-point.entity';
-import { VehicleCheckin } from '../../vehicle-checkin/entities/vehicle-checkin.entity';
-import { GpsEvent } from '../../gps-event/entities/gps-event.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum RouteStatus {
   PLANIFICADA = 'planificada',
@@ -21,81 +8,68 @@ export enum RouteStatus {
   CANCELADA = 'cancelada',
 }
 
-@Entity('scheduled_routes')
-export class ScheduledRoute {
-  @PrimaryGeneratedColumn()
-  id: number;
+export type ScheduledRouteDocument = ScheduledRoute & Document;
 
-  @Column()
+@Schema({
+  collection: 'scheduled_routes',
+  timestamps: true,
+})
+export class ScheduledRoute {
+  _id: Types.ObjectId;
+
+  @Prop({ required: true })
   name: string;
 
-  @Column('text', { nullable: true })
-  description: string;
+  @Prop()
+  description?: string;
 
-  @Column({ type: 'date' })
+  @Prop({ required: true, type: Date })
   plannedStartDate: Date;
 
-  @Column({ type: 'date' })
+  @Prop({ required: true, type: Date })
   plannedEndDate: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  actualStartTime: Date;
+  @Prop({ type: Date })
+  actualStartTime?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  actualEndTime: Date;
+  @Prop({ type: Date })
+  actualEndTime?: Date;
 
-  @Column({
-    type: 'enum',
+  @Prop({
+    type: String,
     enum: RouteStatus,
     default: RouteStatus.PLANIFICADA,
   })
   status: RouteStatus;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  estimatedDistance: number;
+  @Prop({ type: Number })
+  estimatedDistance?: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  actualDistance: number;
+  @Prop({ type: Number })
+  actualDistance?: number;
 
-  @Column({ nullable: true })
-  origin: string;
+  @Prop()
+  origin?: string;
 
-  @Column({ nullable: true })
-  destination: string;
+  @Prop()
+  destination?: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  estimatedCost: number;
+  @Prop({ type: Number })
+  estimatedCost?: number;
 
-  @Column({ type: 'text', nullable: true })
-  notes: string;
+  @Prop()
+  notes?: string;
 
-  // Relaciones
-  @ManyToOne(() => Vehicle, (vehicle) => vehicle.scheduledRoutes)
-  @JoinColumn({ name: 'vehicleId' })
-  vehicle: Vehicle;
+  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  vehicleId: Types.ObjectId;
 
-  @Column()
-  vehicleId: number;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  driverId: Types.ObjectId;
 
-  @ManyToOne(() => User, (user) => user.assignedRoutes)
-  @JoinColumn({ name: 'driverId' })
-  driver: User;
-
-  @Column()
-  driverId: number;
-
-  @OneToMany(() => RoutePoint, (routePoint) => routePoint.scheduledRoute)
-  routePoints: RoutePoint[];
-
-  @OneToMany(() => VehicleCheckin, (checkin) => checkin.scheduledRoute)
-  vehicleCheckins: VehicleCheckin[];
-
-  @OneToMany(() => GpsEvent, (gpsEvent) => gpsEvent.scheduledRoute)
-  gpsEvents: GpsEvent[];
-
-  @CreateDateColumn()
+  // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
-
-  @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const ScheduledRouteSchema =
+  SchemaFactory.createForClass(ScheduledRoute);

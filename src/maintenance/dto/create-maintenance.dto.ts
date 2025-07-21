@@ -82,8 +82,8 @@ export class CreateMaintenanceDto {
 
   @ApiProperty({
     description: 'Vehicle ID',
-    example: 1,
+    example: '507f1f77bcf86cd799439011',
   })
-  @IsNumber()
-  vehicleId: number;
+  @IsString()
+  vehicleId: string;
 }
