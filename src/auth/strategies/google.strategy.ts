@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Strategy, VerifyCallback, StrategyOptions } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -13,7 +13,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         configService.get<string>('GOOGLE_CALLBACK_URL') ||
         'http://localhost:3000/auth/google/redirect',
       scope: ['email', 'profile'],
-    });
+       passReqToCallback: false,
+    } as StrategyOptions);
   }
 
   async validate(
