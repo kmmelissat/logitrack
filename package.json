@@ -33,6 +33,10 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "jsonwebtoken": "^9.0.2",
+<<<<<<< Updated upstream
+=======
+    "mongoose": "^8.16.4",
+>>>>>>> Stashed changes
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
