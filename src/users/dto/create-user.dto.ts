@@ -36,7 +36,11 @@ export class CreateUserDto {
   @IsString()
   googleId?: string;
 
-  @ApiProperty({ description: 'User role', enum: Role, default: Role.CUSTOMER })
+  @ApiProperty({
+    description: 'User role',
+    enum: Role,
+    default: Role.CONDUCTOR,
+  })
   @IsEnum(Role)
   role: Role;
 }

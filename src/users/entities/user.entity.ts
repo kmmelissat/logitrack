@@ -1,54 +1,44 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-} from 'typeorm';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 import { Role } from '../../auth/enums/role.enum';
-import { Machine } from '../../machines/entities/machine.entity';
-import { RentalRequest } from '../../rentals/entities/rental-request.entity';
 
-@Entity('users')
+export type UserDocument = User & Document;
+
+@Schema({
+  collection: 'users',
+  timestamps: true,
+})
 export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
+  _id: Types.ObjectId;
 
-  @Column({ unique: true })
+  @Prop({ required: true, unique: true })
   email: string;
 
-  @Column()
+  @Prop({ required: true })
   firstName: string;
 
-  @Column()
+  @Prop({ required: true })
   lastName: string;
 
-  @Column({ nullable: true })
-  picture: string;
+  @Prop()
+  picture?: string;
 
-  @Column({ nullable: true })
-  googleId: string;
+  @Prop()
+  googleId?: string;
 
-  @Column({ nullable: true })
-  password: string;
+  @Prop()
+  password?: string;
 
-  @Column({
-    type: 'enum',
+  @Prop({
+    type: String,
     enum: Role,
-    default: Role.CUSTOMER,
+    default: Role.CONDUCTOR,
   })
   role: Role;
 
-  @OneToMany(() => Machine, (machine) => machine.createdBy)
-  machines: Machine[];
-
-  @OneToMany(() => RentalRequest, (rentalRequest) => rentalRequest.user)
-  rentalRequests: RentalRequest[];
-
-  @CreateDateColumn()
+  // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
-
-  @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const UserSchema = SchemaFactory.createForClass(User);

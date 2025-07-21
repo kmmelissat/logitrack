@@ -9,6 +9,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
+import { Role } from './enums/role.enum';
 
 interface GoogleUser {
   email: string;
@@ -48,12 +49,16 @@ export class AuthService {
     });
 
     // Generate JWT token
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = {
+      sub: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    };
     const token = this.jwtService.sign(payload);
 
     return {
       user: {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -73,18 +78,25 @@ export class AuthService {
     }
 
     // Verify password
+    if (!user.password) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Generate JWT token
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = {
+      sub: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    };
     const token = this.jwtService.sign(payload);
 
     return {
       user: {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -94,19 +106,61 @@ export class AuthService {
     };
   }
 
-  async validateUser(id: number): Promise<User> {
+  async validateUser(id: string): Promise<User> {
     return this.usersService.findOne(id);
   }
 
   async googleLogin(req: {
     user?: GoogleUser;
-  }): Promise<{ message: string; user?: GoogleUser }> {
+  }): Promise<{ message: string; user?: any; token?: string }> {
     if (!req.user) {
-      return { message: 'No user from google' };
+      return { message: 'No user from Google' };
     }
+
+    const { email, firstName, lastName, picture, googleId } = req.user;
+
+    // Check if user already exists
+    let user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      // Create new user from Google data
+      user = await this.usersService.create({
+        email,
+        firstName,
+        lastName,
+        picture,
+        googleId,
+        password: '', // No password for Google users
+        role: Role.CONDUCTOR, // Default role
+      });
+    } else if (!user.googleId) {
+      // Link existing account with Google
+      await this.usersService.update(user._id.toString(), {
+        googleId,
+        picture: picture || user.picture,
+      });
+    }
+
+    // Generate JWT token
+    const payload = {
+      sub: user._id.toString(),
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`,
+      role: user.role,
+    };
+    const token = this.jwtService.sign(payload);
+
     return {
-      message: 'User info from google',
-      user: req.user,
+      message: 'Google login successful',
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        picture: user.picture,
+        role: user.role,
+      },
+      token,
     };
   }
 }
