@@ -5,8 +5,13 @@ import {
   HttpException, 
   HttpStatus, 
   Param,
-  Patch, 
-  UseGuards 
+  Patch,
+  Post,
+  UseGuards,
+  Query,
+  Delete,
+  BadRequestException,
+  NotFoundException
 } from '@nestjs/common';
 
 import { 
@@ -25,12 +30,146 @@ import { Role } from 'src/auth/enums/role.enum';
 import { ScheduledRouteResponseDto } from './dto/scheduled-route-response.dto';
 import { UpdateScheduledRouteDto } from './dto/update-scheduled-route.dto';
 
+import { CreateScheduledRouteDto } from './dto/create-scheduled-route.dto';
+import { ListScheduledRoutesDto, ListScheduledRoutesResponseDto } from './dto/list-scheduled-route.dto';
+
 @ApiTags('scheduled-routes')
 @Controller('scheduled-routes')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class ScheduledRouteController {
   constructor(private readonly scheduledRouteService: ScheduledRouteService) {}
+
+@Get()
+@Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
+@ApiOperation({ 
+  summary: 'Listar rutas programadas',
+  description: 'Obtiene una lista paginada de rutas programadas con filtros opcionales'
+})
+@ApiResponse({
+  status: 200,
+  description: 'Lista de rutas obtenida exitosamente',
+  type: ListScheduledRoutesResponseDto
+})
+@ApiResponse({
+  status: 400,
+  description: 'Parámetros de consulta inválidos'
+})
+async findAll(@Query() queryDto: ListScheduledRoutesDto): Promise<ListScheduledRoutesResponseDto> {
+  try {
+    return await this.scheduledRouteService.findAll(queryDto);
+  } catch (error) {
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+    throw new HttpException(
+      'Error interno del servidor',
+      HttpStatus.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
+@Post()
+@Roles(Role.ADMIN, Role.LOGISTICA)
+@ApiOperation({ 
+  summary: 'Crear nueva ruta programada',
+  description: 'Crea una nueva ruta programada con validaciones de negocio'
+})
+@ApiBody({
+  type: CreateScheduledRouteDto,
+  description: 'Datos de la nueva ruta',
+  examples: {
+    ejemplo1: {
+      summary: 'Ruta básica',
+      value: {
+        name: 'Ruta San Salvador - Tegucigalpa',
+        description: 'Ruta comercial diaria',
+        plannedStartDate: '2025-07-22T06:00:00.000Z',
+        plannedEndDate: '2025-07-22T18:00:00.000Z',
+        origin: 'Terminal San Salvador',
+        destination: 'Terminal Tegucigalpa',
+        estimatedDistance: 250.5,
+        estimatedCost: 1500.00,
+        vehicleId: '507f1f77bcf86cd799439011',
+        driverId: '507f1f77bcf86cd799439012'
+      }
+    }
+  }
+})
+@ApiResponse({
+  status: 201,
+  description: 'Ruta creada exitosamente',
+  type: ScheduledRouteResponseDto
+})
+@ApiResponse({
+  status: 400,
+  description: 'Datos inválidos o conflicto de programación'
+})
+@ApiResponse({
+  status: 404,
+  description: 'Vehículo o conductor no encontrado'
+})
+async create(@Body() createDto: CreateScheduledRouteDto): Promise<ScheduledRouteResponseDto> {
+  try {
+    const createdRoute = await this.scheduledRouteService.create(createDto);
+    // Fetch the full document to ensure it is a ScheduledRouteDocument
+    const routeDocument = await this.scheduledRouteService.findOneWithDetails(createdRoute._id.toString());
+    return await this.scheduledRouteService.formatRouteResponse(routeDocument);
+  } catch (error) {
+    if (error instanceof NotFoundException) {
+      throw error;
+    }
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+    throw new HttpException(
+      'Error interno del servidor',
+      HttpStatus.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
+@Delete(':id')
+@Roles(Role.ADMIN)
+@ApiOperation({ 
+  summary: 'Eliminar ruta programada',
+  description: 'Elimina una ruta programada y sus puntos asociados. Solo rutas planificadas o canceladas pueden ser eliminadas.'
+})
+@ApiParam({
+  name: 'id',
+  description: 'ID único de la ruta',
+  example: '507f1f77bcf86cd799439011'
+})
+@ApiResponse({
+  status: 200,
+  description: 'Ruta eliminada exitosamente',
+  schema: {
+    example: {
+      message: 'Ruta eliminada exitosamente'
+    }
+  }
+})
+@ApiResponse({
+  status: 400,
+  description: 'ID inválido o ruta no se puede eliminar'
+})
+@ApiResponse({
+  status: 404,
+  description: 'Ruta no encontrada'
+})
+async remove(@Param('id') id: string): Promise<{ message: string }> {
+  try {
+    return await this.scheduledRouteService.remove(id);
+  } catch (error) {
+    if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      throw error;
+    }
+    throw new HttpException(
+      'Error interno del servidor',
+      HttpStatus.INTERNAL_SERVER_ERROR
+    );
+  }
+}
 
   @Get(':id')
   @ApiOperation({
@@ -76,7 +215,7 @@ export class ScheduledRouteController {
     }
   }
 
-  @Patch(';id')
+  @Patch(':id')
   @ApiOperation({ 
     summary: 'Actualizar ruta programada',
     description: 'Actualiza parcialmente los datos de una ruta programada. Solo se modificarán los campos enviados en el request.'
@@ -133,7 +272,7 @@ export class ScheduledRouteController {
   })
   @Roles(Role.ADMIN, Role.LOGISTICA)
   async update(
-    @Param(':id') id:string,
+    @Param('id') id:string,
     @Body() updateScheduledRouteDto: UpdateScheduledRouteDto
   ): Promise<ScheduledRouteResponseDto> {
     try{
