@@ -40,7 +40,7 @@ import { ListScheduledRoutesDto, ListScheduledRoutesResponseDto } from './dto/li
 export class ScheduledRouteController {
   constructor(private readonly scheduledRouteService: ScheduledRouteService) {}
 
-  @Get()
+@Get()
 @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
 @ApiOperation({ 
   summary: 'Listar rutas programadas',
@@ -215,7 +215,7 @@ async remove(@Param('id') id: string): Promise<{ message: string }> {
     }
   }
 
-  @Patch(';id')
+  @Patch(':id')
   @ApiOperation({ 
     summary: 'Actualizar ruta programada',
     description: 'Actualiza parcialmente los datos de una ruta programada. Solo se modificarán los campos enviados en el request.'
@@ -272,7 +272,7 @@ async remove(@Param('id') id: string): Promise<{ message: string }> {
   })
   @Roles(Role.ADMIN, Role.LOGISTICA)
   async update(
-    @Param(':id') id:string,
+    @Param('id') id:string,
     @Body() updateScheduledRouteDto: UpdateScheduledRouteDto
   ): Promise<ScheduledRouteResponseDto> {
     try{

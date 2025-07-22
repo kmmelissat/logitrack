@@ -290,10 +290,6 @@ async remove(id: string): Promise<{ message: string }> {
     return updatedRoute;
   }
 
-  /**
-   * Método auxiliar para formatear la respuesta con puntos
-   * Transforma el documento de MongoDB a un formato más limpio para la API
-   */
   async formatRouteResponse(route: ScheduledRouteDocument): Promise<any> {
     const routeObj = route.toObject();
     
@@ -306,14 +302,35 @@ async remove(id: string): Promise<{ message: string }> {
       routeObj.points = points;
     }
 
-    // Renombrar los campos populados para que coincidan con el DTO de respuesta
-    return {
-      ...routeObj,
+    // Formatear respuesta limpia como el ejemplo esperado
+    const cleanResponse = {
+      _id: routeObj._id,
+      name: routeObj.name,
+      description: routeObj.description,
+      plannedStartDate: routeObj.plannedStartDate,
+      plannedEndDate: routeObj.plannedEndDate,
+      actualStartTime: routeObj.actualStartTime,
+      actualEndTime: routeObj.actualEndTime,
+      status: routeObj.status,
+      estimatedDistance: routeObj.estimatedDistance,
+      actualDistance: routeObj.actualDistance,
+      origin: routeObj.origin,
+      destination: routeObj.destination,
+      estimatedCost: routeObj.estimatedCost,
+      notes: routeObj.notes,
       vehicle: routeObj.vehicleId,
       driver: routeObj.driverId,
-      // Limpiar los campos originales que ya fueron renombrados
-      vehicleId: undefined,
-      driverId: undefined,
+      points: routeObj.points || [],
+      createdAt: routeObj.createdAt,
+      updatedAt: routeObj.updatedAt
     };
+
+    // Remover campos undefined para respuesta más limpia
+    Object.keys(cleanResponse).forEach(key => {
+      if (cleanResponse[key] === undefined) {
+        delete cleanResponse[key];
+      }
+    });
+    return cleanResponse;
   }
 }
