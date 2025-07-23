@@ -20,8 +20,30 @@ export class VehicleService {
   ) {}
 
   async create(createVehicleDto: CreateVehicleDto): Promise<Vehicle> {
-    const vehicle = new this.vehicleModel(createVehicleDto);
-    return vehicle.save();
+    try {
+      // Check if vehicle with same plate number already exists
+      const existingVehicle = await this.vehicleModel
+        .findOne({
+          plateNumber: createVehicleDto.plateNumber,
+        })
+        .exec();
+
+      if (existingVehicle) {
+        throw new BadRequestException(
+          `Vehicle with plate number ${createVehicleDto.plateNumber} already exists`,
+        );
+      }
+
+      const vehicle = new this.vehicleModel(createVehicleDto);
+      return await vehicle.save();
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to create vehicle: ${error.message}`,
+      );
+    }
   }
 
   async findAll(): Promise<Vehicle[]> {
