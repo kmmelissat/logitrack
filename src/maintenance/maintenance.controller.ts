@@ -12,6 +12,7 @@ import { MaintenanceService } from './maintenance.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
 import { VehicleMaintenanceResponseDto } from './dto/vehicle-maintenance-response.dto';
+import { CreateMaintenanceResponseDto } from './dto/create-maintenance-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -50,6 +51,7 @@ export class MaintenanceController {
   @ApiResponse({
     status: 201,
     description: 'Maintenance successfully created for the vehicle',
+    type: CreateMaintenanceResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })

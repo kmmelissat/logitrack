@@ -20,9 +20,19 @@ export class MaintenanceService {
 
   async create(
     createMaintenanceDto: CreateMaintenanceDto,
-  ): Promise<Maintenance> {
+  ): Promise<{ maintenance: Maintenance; vehicle: any }> {
     const maintenance = new this.maintenanceModel(createMaintenanceDto);
-    return maintenance.save();
+    const savedMaintenance = await maintenance.save();
+
+    // Get vehicle information
+    const vehicle = await this.vehicleModel
+      .findById(createMaintenanceDto.vehicleId)
+      .exec();
+
+    return {
+      maintenance: savedMaintenance,
+      vehicle,
+    };
   }
 
   async findAll(): Promise<Maintenance[]> {
