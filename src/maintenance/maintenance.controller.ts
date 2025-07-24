@@ -11,6 +11,7 @@ import {
 import { MaintenanceService } from './maintenance.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
+import { VehicleMaintenanceResponseDto } from './dto/vehicle-maintenance-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -33,7 +34,11 @@ export class MaintenanceController {
   @Get('/vehicles/:id/maintenance')
   @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
   @ApiOperation({ summary: 'View maintenance history by vehicle' })
-  @ApiResponse({ status: 200, description: 'Vehicle maintenance history' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vehicle maintenance history and vehicle information',
+    type: VehicleMaintenanceResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Vehicle or maintenance not found' })
   getMaintenanceByVehicle(@Param('id') id: string) {
     return this.maintenanceService.findByVehicle(id);
@@ -42,14 +47,20 @@ export class MaintenanceController {
   @Post('/vehicles/:id/maintenance')
   @Roles(Role.ADMIN, Role.LOGISTICA)
   @ApiOperation({ summary: 'Register new maintenance for a vehicle' })
-  @ApiResponse({ status: 201, description: 'Maintenance successfully created for the vehicle' })
+  @ApiResponse({
+    status: 201,
+    description: 'Maintenance successfully created for the vehicle',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   createMaintenanceForVehicle(
     @Param('id') id: string,
     @Body() createMaintenanceDto: CreateMaintenanceDto,
   ) {
-    return this.maintenanceService.create({ ...createMaintenanceDto, vehicleId: id });
+    return this.maintenanceService.create({
+      ...createMaintenanceDto,
+      vehicleId: id,
+    });
   }
 
   @Get(':id')
