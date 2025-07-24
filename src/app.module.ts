@@ -24,9 +24,7 @@ import { MapsModule } from './maps/maps.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        uri:
-          configService.get('MONGODB_URI') ||
-          'mongodb://localhost:27017/logitrack',
+        uri: configService.get('MONGODB_URI'),
       }),
       inject: [ConfigService],
     }),

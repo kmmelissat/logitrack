@@ -1,9 +1,323 @@
-import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { RoutePointService } from './route-point.service';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Patch,
+  Delete,
+  Put,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiBody,
+} from '@nestjs/swagger';
+import {
+  RoutePointService,
+  CreateRoutePointDto,
+  UpdateRoutePointDto,
+} from './route-point.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../auth/enums/role.enum';
+import { PointType } from './entities/route-point.entity';
 
 @ApiTags('route-points')
 @Controller('route-points')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiBearerAuth()
 export class RoutePointController {
   constructor(private readonly routePointService: RoutePointService) {}
+
+  @Post()
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({
+    summary: 'Create a new route point',
+    description:
+      'Create a new point in a scheduled route with proper sequencing',
+  })
+  @ApiBody({
+    description: 'Route point data',
+    examples: {
+      origin: {
+        summary: 'Origin point',
+        value: {
+          name: 'Terminal San Salvador',
+          description: 'Starting point of the route',
+          type: 'origen',
+          latitude: 13.6929,
+          longitude: -89.2182,
+          address: 'Terminal de Buses San Salvador',
+          sequenceOrder: 1,
+          scheduledRouteId: '507f1f77bcf86cd799439011',
+        },
+      },
+      waypoint: {
+        summary: 'Waypoint/Stop',
+        value: {
+          name: 'Santa Ana',
+          description: 'Intermediate stop for cargo pickup',
+          type: 'parada',
+          latitude: 13.9947,
+          longitude: -89.5597,
+          address: 'Centro de Santa Ana',
+          sequenceOrder: 2,
+          estimatedStayMinutes: 30,
+          radiusMeters: 500,
+          scheduledRouteId: '507f1f77bcf86cd799439011',
+        },
+      },
+      destination: {
+        summary: 'Destination point',
+        value: {
+          name: 'Terminal Tegucigalpa',
+          description: 'Final destination of the route',
+          type: 'destino',
+          latitude: 14.0723,
+          longitude: -87.1921,
+          address: 'Terminal de Buses Tegucigalpa',
+          sequenceOrder: 3,
+          scheduledRouteId: '507f1f77bcf86cd799439011',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Route point created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid data or coordinates' })
+  @ApiResponse({ status: 404, description: 'Scheduled route not found' })
+  async create(@Body() createRoutePointDto: CreateRoutePointDto) {
+    return this.routePointService.create(createRoutePointDto);
+  }
+
+  @Get()
+  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
+  @ApiOperation({
+    summary: 'Get all route points with filters',
+    description:
+      'Retrieve route points with optional filtering by route, type, completion status',
+  })
+  @ApiQuery({
+    name: 'scheduledRouteId',
+    required: false,
+    description: 'Filter by scheduled route ID',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: PointType,
+    description: 'Filter by point type',
+  })
+  @ApiQuery({
+    name: 'isCompleted',
+    required: false,
+    description: 'Filter by completion status (true/false)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Route points retrieved successfully',
+  })
+  async findAll(@Query() query: any) {
+    return this.routePointService.findAll(query);
+  }
+
+  @Get('route/:scheduledRouteId')
+  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
+  @ApiOperation({
+    summary: 'Get all points for a specific route',
+    description:
+      'Retrieve all route points for a specific scheduled route, ordered by sequence',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Route points retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Route not found' })
+  async findByRoute(@Param('scheduledRouteId') scheduledRouteId: string) {
+    return this.routePointService.findByRoute(scheduledRouteId);
+  }
+
+  @Get('route/:scheduledRouteId/summary')
+  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
+  @ApiOperation({
+    summary: 'Get route summary with points',
+    description:
+      'Get a summary of route points including completion status and statistics',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Route summary retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Route not found' })
+  async getRouteSummary(@Param('scheduledRouteId') scheduledRouteId: string) {
+    return this.routePointService.getRouteSummary(scheduledRouteId);
+  }
+
+  @Get('nearby')
+  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
+  @ApiOperation({
+    summary: 'Find nearby route points',
+    description:
+      'Find route points within a specified radius of given coordinates',
+  })
+  @ApiQuery({
+    name: 'latitude',
+    required: true,
+    description: 'Latitude coordinate',
+  })
+  @ApiQuery({
+    name: 'longitude',
+    required: true,
+    description: 'Longitude coordinate',
+  })
+  @ApiQuery({
+    name: 'radius',
+    required: false,
+    description: 'Search radius in meters (default: 1000)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Nearby points retrieved successfully',
+  })
+  async findNearbyPoints(
+    @Query('latitude') latitude: string,
+    @Query('longitude') longitude: string,
+    @Query('radius') radius?: string,
+  ) {
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    const radiusMeters = radius ? parseFloat(radius) : 1000;
+
+    if (isNaN(lat) || isNaN(lng)) {
+      throw new Error('Invalid coordinates provided');
+    }
+
+    return this.routePointService.findNearbyPoints(lat, lng, radiusMeters);
+  }
+
+  @Get(':id')
+  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
+  @ApiOperation({
+    summary: 'Get route point by ID',
+    description: 'Retrieve a specific route point by its ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Route point retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Route point not found' })
+  async findOne(@Param('id') id: string) {
+    return this.routePointService.findOne(id);
+  }
+
+  @Patch(':id')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({
+    summary: 'Update route point',
+    description: 'Update a specific route point (Admin/Logistics only)',
+  })
+  @ApiBody({
+    description: 'Route point update data',
+    examples: {
+      basic: {
+        summary: 'Basic update',
+        value: {
+          name: 'Updated Point Name',
+          description: 'Updated description',
+          notes: 'Updated notes',
+        },
+      },
+      coordinates: {
+        summary: 'Update coordinates',
+        value: {
+          latitude: 13.7,
+          longitude: -89.2,
+          address: 'New address',
+        },
+      },
+      timing: {
+        summary: 'Update timing',
+        value: {
+          plannedArrivalTime: '2024-01-15T08:00:00Z',
+          plannedDepartureTime: '2024-01-15T08:30:00Z',
+          estimatedStayMinutes: 30,
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Route point updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid data or coordinates' })
+  @ApiResponse({ status: 404, description: 'Route point not found' })
+  async update(
+    @Param('id') id: string,
+    @Body() updateRoutePointDto: UpdateRoutePointDto,
+  ) {
+    return this.routePointService.update(id, updateRoutePointDto);
+  }
+
+  @Patch(':id/complete')
+  @Roles(Role.CONDUCTOR)
+  @ApiOperation({
+    summary: 'Mark route point as completed (Driver only)',
+    description:
+      'Mark a route point as completed and record actual arrival time',
+  })
+  @ApiResponse({ status: 200, description: 'Route point marked as completed' })
+  @ApiResponse({ status: 404, description: 'Route point not found' })
+  async markAsCompleted(@Param('id') id: string) {
+    return this.routePointService.markAsCompleted(id);
+  }
+
+  @Put('route/:scheduledRouteId/reorder')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({
+    summary: 'Reorder route points',
+    description: 'Reorder the sequence of points in a route',
+  })
+  @ApiBody({
+    description: 'Array of point IDs in the desired order',
+    examples: {
+      reorder: {
+        summary: 'Reorder route points',
+        value: [
+          '507f1f77bcf86cd799439011',
+          '507f1f77bcf86cd799439012',
+          '507f1f77bcf86cd799439013',
+        ],
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Route points reordered successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid point IDs or points do not belong to route',
+  })
+  @ApiResponse({ status: 404, description: 'Route not found' })
+  async reorderPoints(
+    @Param('scheduledRouteId') scheduledRouteId: string,
+    @Body() pointIds: string[],
+  ) {
+    return this.routePointService.reorderPoints(scheduledRouteId, pointIds);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({
+    summary: 'Delete route point',
+    description: 'Delete a specific route point (Admin/Logistics only)',
+  })
+  @ApiResponse({ status: 200, description: 'Route point deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Route point not found' })
+  async remove(@Param('id') id: string) {
+    return this.routePointService.remove(id);
+  }
 }

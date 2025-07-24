@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 import { Strategy, StrategyOptions, VerifyCallback } from 'passport-google-oauth20';
 =======
 import { Strategy, VerifyCallback, StrategyOptions } from 'passport-google-oauth20'; // Add StrategyOptions import
 >>>>>>> Stashed changes
+=======
+import { Strategy, VerifyCallback, StrategyOptions } from 'passport-google-oauth20';
+>>>>>>> 3988268667eec0482d16c95ab24f22f387e2da2d
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -17,11 +21,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         configService.get<string>('GOOGLE_CALLBACK_URL') ||
         'http://localhost:3000/auth/google/redirect',
       scope: ['email', 'profile'],
+<<<<<<< HEAD
 <<<<<<< Updated upstream
     } as StrategyOptions); // ✅ casteo explícito para evitar error TS2345
 =======
     } as StrategyOptions);
 >>>>>>> Stashed changes
+=======
+       passReqToCallback: false,
+    } as StrategyOptions);
+>>>>>>> 3988268667eec0482d16c95ab24f22f387e2da2d
   }
 
   async validate(

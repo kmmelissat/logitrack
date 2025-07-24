@@ -43,8 +43,12 @@
     "class-validator": "^0.14.2",
     "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
+<<<<<<< HEAD
 <<<<<<< Updated upstream
     "mongoose": "^8.0.0",
+=======
+    "mongoose": "^8.16.4",
+>>>>>>> 3988268667eec0482d16c95ab24f22f387e2da2d
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",

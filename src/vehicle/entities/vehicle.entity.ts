@@ -42,6 +42,26 @@ export class Vehicle {
   @Prop({ type: Number })
   capacity?: number;
 
+  // Driver update fields
+  @Prop({ type: Number })
+  currentMileage?: number;
+
+  @Prop({ type: Number, min: 0, max: 100 })
+  fuelLevel?: number;
+
+  @Prop()
+  driverNotes?: string;
+
+  // Vehicle assignment fields
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  assignedDriverId?: Types.ObjectId;
+
+  @Prop({ type: Date })
+  assignmentDate?: Date;
+
+  @Prop()
+  assignmentNotes?: string;
+
   // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;
   updatedAt: Date;
