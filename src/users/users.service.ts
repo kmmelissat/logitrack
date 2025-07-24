@@ -82,4 +82,16 @@ export class UsersService {
 
     return user;
   }
+
+  async findAdmins(): Promise<User[]> {
+    return this.userModel.find({ role: 'admin' }).exec();
+  }
+
+  async findDrivers(): Promise<User[]> {
+    return this.userModel.find({ role: 'conductor' }).exec();
+  }
+
+  async findLogistics(): Promise<User[]> {
+    return this.userModel.find({ role: 'logística' }).exec();
+  }
 }

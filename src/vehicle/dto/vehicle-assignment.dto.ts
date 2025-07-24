@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsDateString, Length } from 'class-validator';
 
 export class VehicleAssignmentDto {
   @ApiProperty({
@@ -22,8 +22,10 @@ export class VehicleAssignmentDto {
     description: 'Assignment notes',
     required: false,
     example: 'Assigned for route to San Salvador',
+    maxLength: 500,
   })
   @IsOptional()
   @IsString()
+  @Length(0, 500)
   notes?: string;
 }
