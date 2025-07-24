@@ -1,14 +1,28 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { ScheduledRoute, ScheduledRouteDocument } from './entities/scheduled-route.entity';
-import { RoutePoint, RoutePointDocument } from '../route-point/entities/route-point.entity';
+import {
+  ScheduledRoute,
+  ScheduledRouteDocument,
+} from './entities/scheduled-route.entity';
+import {
+  RoutePoint,
+  RoutePointDocument,
+} from '../route-point/entities/route-point.entity';
 import { Vehicle, VehicleDocument } from '../vehicle/entities/vehicle.entity';
 import { User, UserDocument } from '../users/entities/user.entity';
 import { UpdateScheduledRouteDto } from './dto/update-scheduled-route.dto';
 import { CreateScheduledRouteDto } from './dto/create-scheduled-route.dto';
-import { ListScheduledRoutesDto, ListScheduledRoutesResponseDto } from './dto/list-scheduled-route.dto';
+import {
+  ListScheduledRoutesDto,
+  ListScheduledRoutesResponseDto,
+} from './dto/list-scheduled-route.dto';
 import { RouteStatus } from './entities/scheduled-route.entity';
+import { MapsService } from '../maps/maps.service';
 
 @Injectable()
 export class ScheduledRouteService {
@@ -21,196 +35,223 @@ export class ScheduledRouteService {
     private vehicleModel: Model<VehicleDocument>,
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    private mapsService: MapsService,
   ) {}
 
-  async findAll(queryDto: ListScheduledRoutesDto): Promise<ListScheduledRoutesResponseDto> {
-  try {
-    let { page, limit, status, search, sortBy, sortOrder } = queryDto;
-    page = page ?? 1;
-    limit = limit ?? 10;
-    
-    // Construir filtros
-    const filter: any = {};
-    
-    if (status) {
-      filter.status = status;
-    }
-    
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { origin: { $regex: search, $options: 'i' } },
-        { destination: { $regex: search, $options: 'i' } }
-      ];
-    }
+  async findAll(
+    queryDto: ListScheduledRoutesDto,
+  ): Promise<ListScheduledRoutesResponseDto> {
+    try {
+      let { page, limit, status, search, sortBy, sortOrder } = queryDto;
+      page = page ?? 1;
+      limit = limit ?? 10;
 
-    // Configurar paginación
-    const skip = (page - 1) * limit;
-    
-    // Configurar ordenamiento
-    const sort: any = {};
-    if (sortBy) {
-      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-    }
+      // Construir filtros
+      const filter: any = {};
 
-    // Ejecutar consulta con populate
-    const [routes, total] = await Promise.all([
-      this.scheduledRouteModel
-        .find(filter)
-        .populate('vehicleId', 'plateNumber brand model status')
-        .populate('driverId', 'firstName lastName email')
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.scheduledRouteModel.countDocuments(filter)
-    ]);
-
-    // Calcular información de paginación
-    const totalPages = Math.ceil(total / limit);
-    const hasNext = page < totalPages;
-    const hasPrev = page > 1;
-
-    return {
-      data: routes,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext,
-        hasPrev
+      if (status) {
+        filter.status = status;
       }
-    };
-  } catch (error) {
-    throw new BadRequestException(`Error al obtener rutas: ${error.message}`);
-  }
-}
 
-async create(createDto: CreateScheduledRouteDto): Promise<ScheduledRoute> {
-  try {
-    // Validar que el vehículo existe y está disponible
-    const vehicle = await this.vehicleModel.findById(createDto.vehicleId);
-    if (!vehicle) {
-      throw new NotFoundException('Vehículo no encontrado');
-    }
-    
-    if (vehicle.status !== 'activo') {
-      throw new BadRequestException('El vehículo no está disponible para asignación');
-    }
+      if (search) {
+        filter.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { origin: { $regex: search, $options: 'i' } },
+          { destination: { $regex: search, $options: 'i' } },
+        ];
+      }
 
-    // Validar que el conductor existe
-    const driver = await this.userModel.findById(createDto.driverId);
-    if (!driver) {
-      throw new NotFoundException('Conductor no encontrado');
-    }
-    
-    if (driver.role !== 'conductor') {
-      throw new BadRequestException('El usuario seleccionado no es un conductor');
-    }
+      // Configurar paginación
+      const skip = (page - 1) * limit;
 
-    // Validar fechas
-    const startDate = new Date(createDto.plannedStartDate);
-    const endDate = new Date(createDto.plannedEndDate);
-    
-    if (startDate >= endDate) {
-      throw new BadRequestException('La fecha de inicio debe ser anterior a la fecha de fin');
-    }
-    
-    if (startDate < new Date()) {
-      throw new BadRequestException('La fecha de inicio no puede ser en el pasado');
-    }
+      // Configurar ordenamiento
+      const sort: any = {};
+      if (sortBy) {
+        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      }
 
-    // Verificar conflictos de programación
-    const conflictingRoute = await this.scheduledRouteModel.findOne({
-      status: { $in: ['planificada', 'en_progreso'] },
-      $or: [
-        {
-          vehicleId: createDto.vehicleId,
-          plannedStartDate: { $lte: endDate },
-          plannedEndDate: { $gte: startDate }
+      // Ejecutar consulta con populate
+      const [routes, total] = await Promise.all([
+        this.scheduledRouteModel
+          .find(filter)
+          .populate('vehicleId', 'plateNumber brand model status')
+          .populate('driverId', 'firstName lastName email')
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        this.scheduledRouteModel.countDocuments(filter),
+      ]);
+
+      // Calcular información de paginación
+      const totalPages = Math.ceil(total / limit);
+      const hasNext = page < totalPages;
+      const hasPrev = page > 1;
+
+      return {
+        data: routes,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext,
+          hasPrev,
         },
-        {
-          driverId: createDto.driverId,
-          plannedStartDate: { $lte: endDate },
-          plannedEndDate: { $gte: startDate }
-        }
-      ]
-    });
-
-    if (conflictingRoute) {
-      throw new BadRequestException('Existe un conflicto de programación con otra ruta');
+      };
+    } catch (error) {
+      throw new BadRequestException(`Error al obtener rutas: ${error.message}`);
     }
-
-    // Crear la nueva ruta
-    const newRoute = new this.scheduledRouteModel({
-      ...createDto,
-      status: createDto.status || RouteStatus.PLANIFICADA
-    });
-
-    const savedRoute = await newRoute.save();
-    
-    // Retornar con populate
-    const populatedRoute = await this.scheduledRouteModel
-      .findById(savedRoute._id)
-      .populate('vehicleId', 'plateNumber brand model status')
-      .populate('driverId', 'firstName lastName email role')
-      .lean();
-
-    if (!populatedRoute) {
-      throw new NotFoundException('No se pudo encontrar la ruta recién creada');
-    }
-
-    return populatedRoute as ScheduledRoute;
-
-  } catch (error) {
-    if (error instanceof NotFoundException || error instanceof BadRequestException) {
-      throw error;
-    }
-    throw new BadRequestException(`Error al crear la ruta: ${error.message}`);
   }
-}
 
-async remove(id: string): Promise<{ message: string }> {
-  try {
-    // Validar formato de ID
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID de ruta inválido');
+  async create(createDto: CreateScheduledRouteDto): Promise<ScheduledRoute> {
+    try {
+      // Validar que el vehículo existe y está disponible
+      const vehicle = await this.vehicleModel.findById(createDto.vehicleId);
+      if (!vehicle) {
+        throw new NotFoundException('Vehículo no encontrado');
+      }
+
+      if (vehicle.status !== 'activo') {
+        throw new BadRequestException(
+          'El vehículo no está disponible para asignación',
+        );
+      }
+
+      // Validar que el conductor existe
+      const driver = await this.userModel.findById(createDto.driverId);
+      if (!driver) {
+        throw new NotFoundException('Conductor no encontrado');
+      }
+
+      if (driver.role !== 'conductor') {
+        throw new BadRequestException(
+          'El usuario seleccionado no es un conductor',
+        );
+      }
+
+      // Validar fechas
+      const startDate = new Date(createDto.plannedStartDate);
+      const endDate = new Date(createDto.plannedEndDate);
+
+      if (startDate >= endDate) {
+        throw new BadRequestException(
+          'La fecha de inicio debe ser anterior a la fecha de fin',
+        );
+      }
+
+      if (startDate < new Date()) {
+        throw new BadRequestException(
+          'La fecha de inicio no puede ser en el pasado',
+        );
+      }
+
+      // Verificar conflictos de programación
+      const conflictingRoute = await this.scheduledRouteModel.findOne({
+        status: { $in: ['planificada', 'en_progreso'] },
+        $or: [
+          {
+            vehicleId: createDto.vehicleId,
+            plannedStartDate: { $lte: endDate },
+            plannedEndDate: { $gte: startDate },
+          },
+          {
+            driverId: createDto.driverId,
+            plannedStartDate: { $lte: endDate },
+            plannedEndDate: { $gte: startDate },
+          },
+        ],
+      });
+
+      if (conflictingRoute) {
+        throw new BadRequestException(
+          'Existe un conflicto de programación con otra ruta',
+        );
+      }
+
+      // Crear la nueva ruta
+      const newRoute = new this.scheduledRouteModel({
+        ...createDto,
+        status: createDto.status || RouteStatus.PLANIFICADA,
+      });
+
+      const savedRoute = await newRoute.save();
+
+      // Retornar con populate
+      const populatedRoute = await this.scheduledRouteModel
+        .findById(savedRoute._id)
+        .populate('vehicleId', 'plateNumber brand model status')
+        .populate('driverId', 'firstName lastName email role')
+        .lean();
+
+      if (!populatedRoute) {
+        throw new NotFoundException(
+          'No se pudo encontrar la ruta recién creada',
+        );
+      }
+
+      return populatedRoute as ScheduledRoute;
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException(`Error al crear la ruta: ${error.message}`);
     }
-
-    // Buscar la ruta
-    const route = await this.scheduledRouteModel.findById(id);
-    if (!route) {
-      throw new NotFoundException('Ruta no encontrada');
-    }
-
-    // Validar que se puede eliminar
-    if (route.status === 'en_progreso') {
-      throw new BadRequestException('No se puede eliminar una ruta en progreso');
-    }
-
-    if (route.status === 'completada') {
-      throw new BadRequestException('No se puede eliminar una ruta completada');
-    }
-
-    // Eliminar puntos de ruta relacionados
-    await this.routePointModel.deleteMany({ scheduledRouteId: new Types.ObjectId(id) });
-
-    // Eliminar la ruta
-    await this.scheduledRouteModel.findByIdAndDelete(id);
-
-    return {
-      message: 'Ruta eliminada exitosamente'
-    };
-
-  } catch (error) {
-    if (error instanceof NotFoundException || error instanceof BadRequestException) {
-      throw error;
-    }
-    throw new BadRequestException(`Error al eliminar la ruta: ${error.message}`);
   }
-}
+
+  async remove(id: string): Promise<{ message: string }> {
+    try {
+      // Validar formato de ID
+      if (!Types.ObjectId.isValid(id)) {
+        throw new BadRequestException('ID de ruta inválido');
+      }
+
+      // Buscar la ruta
+      const route = await this.scheduledRouteModel.findById(id);
+      if (!route) {
+        throw new NotFoundException('Ruta no encontrada');
+      }
+
+      // Validar que se puede eliminar
+      if (route.status === 'en_progreso') {
+        throw new BadRequestException(
+          'No se puede eliminar una ruta en progreso',
+        );
+      }
+
+      if (route.status === 'completada') {
+        throw new BadRequestException(
+          'No se puede eliminar una ruta completada',
+        );
+      }
+
+      // Eliminar puntos de ruta relacionados
+      await this.routePointModel.deleteMany({
+        scheduledRouteId: new Types.ObjectId(id),
+      });
+
+      // Eliminar la ruta
+      await this.scheduledRouteModel.findByIdAndDelete(id);
+
+      return {
+        message: 'Ruta eliminada exitosamente',
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Error al eliminar la ruta: ${error.message}`,
+      );
+    }
+  }
 
   /**
    * Busca una ruta por ID con todos sus detalles relacionados
@@ -225,7 +266,10 @@ async remove(id: string): Promise<{ message: string }> {
     // Buscar la ruta con populate de vehículo y conductor (campos reales)
     const route = await this.scheduledRouteModel
       .findById(id)
-      .populate('vehicleId', 'plateNumber brand model year vin status mileage fuelType capacity')
+      .populate(
+        'vehicleId',
+        'plateNumber brand model year vin status mileage fuelType capacity',
+      )
       .populate('driverId', 'email firstName lastName picture role')
       .exec();
 
@@ -250,7 +294,10 @@ async remove(id: string): Promise<{ message: string }> {
    * Actualiza una ruta programada
    * Solo actualiza los campos enviados en el DTO
    */
-  async update(id: string, updateScheduledRouteDto: UpdateScheduledRouteDto): Promise<ScheduledRouteDocument> {
+  async update(
+    id: string,
+    updateScheduledRouteDto: UpdateScheduledRouteDto,
+  ): Promise<ScheduledRouteDocument> {
     // Validar que el ID sea válido
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('ID de ruta inválido');
@@ -263,9 +310,17 @@ async remove(id: string): Promise<{ message: string }> {
     }
 
     // Validaciones de negocio adicionales
-    if (updateScheduledRouteDto.plannedStartDate && updateScheduledRouteDto.plannedEndDate) {
-      if (new Date(updateScheduledRouteDto.plannedStartDate) >= new Date(updateScheduledRouteDto.plannedEndDate)) {
-        throw new BadRequestException('La fecha de inicio debe ser anterior a la fecha de fin');
+    if (
+      updateScheduledRouteDto.plannedStartDate &&
+      updateScheduledRouteDto.plannedEndDate
+    ) {
+      if (
+        new Date(updateScheduledRouteDto.plannedStartDate) >=
+        new Date(updateScheduledRouteDto.plannedEndDate)
+      ) {
+        throw new BadRequestException(
+          'La fecha de inicio debe ser anterior a la fecha de fin',
+        );
       }
     }
 
@@ -274,12 +329,15 @@ async remove(id: string): Promise<{ message: string }> {
       .findByIdAndUpdate(
         id,
         { $set: updateScheduledRouteDto },
-        { 
+        {
           new: true, // Retornar el documento actualizado
-          runValidators: true // Ejecutar validaciones del schema
-        }
+          runValidators: true, // Ejecutar validaciones del schema
+        },
       )
-      .populate('vehicleId', 'plateNumber brand model year vin status mileage fuelType capacity')
+      .populate(
+        'vehicleId',
+        'plateNumber brand model year vin status mileage fuelType capacity',
+      )
       .populate('driverId', 'email firstName lastName picture role')
       .exec();
 
@@ -292,7 +350,7 @@ async remove(id: string): Promise<{ message: string }> {
 
   async formatRouteResponse(route: ScheduledRouteDocument): Promise<any> {
     const routeObj = route.toObject();
-    
+
     // Buscar puntos si no están incluidos
     if (!routeObj.points) {
       const points = await this.routePointModel
@@ -321,16 +379,100 @@ async remove(id: string): Promise<{ message: string }> {
       vehicle: routeObj.vehicleId,
       driver: routeObj.driverId,
       points: routeObj.points || [],
+      // Google Maps route data
+      routePolyline: routeObj.routePolyline,
+      decodedPath: routeObj.decodedPath,
+      estimatedDuration: routeObj.estimatedDuration,
+      estimatedDurationText: routeObj.estimatedDurationText,
+      estimatedDistanceText: routeObj.estimatedDistanceText,
+      routeSteps: routeObj.routeSteps,
+      waypoints: routeObj.waypoints,
+      lastRouteCalculation: routeObj.lastRouteCalculation,
       createdAt: routeObj.createdAt,
-      updatedAt: routeObj.updatedAt
+      updatedAt: routeObj.updatedAt,
     };
 
     // Remover campos undefined para respuesta más limpia
-    Object.keys(cleanResponse).forEach(key => {
+    Object.keys(cleanResponse).forEach((key) => {
       if (cleanResponse[key] === undefined) {
         delete cleanResponse[key];
       }
     });
     return cleanResponse;
+  }
+
+  async calculateAndUpdateRoute(id: string): Promise<ScheduledRoute> {
+    try {
+      // Get the route with all its points
+      const route = await this.findOneWithDetails(id);
+      const routePoints = await this.routePointModel
+        .find({ scheduledRouteId: id })
+        .sort({ sequenceOrder: 1 })
+        .exec();
+
+      if (routePoints.length < 2) {
+        throw new BadRequestException(
+          'Route must have at least origin and destination points',
+        );
+      }
+
+      // Calculate route using Google Maps
+      const routeData = await this.mapsService.calculateRouteFromPoints(
+        routePoints.map((point) => ({
+          latitude: point.latitude,
+          longitude: point.longitude,
+          type: point.type,
+        })),
+      );
+
+      // Update the route with Google Maps data
+      const updatedRoute = await this.scheduledRouteModel
+        .findByIdAndUpdate(
+          id,
+          {
+            routePolyline: routeData.routePolyline,
+            decodedPath: routeData.decodedPath,
+            estimatedDistance: routeData.estimatedDistance,
+            estimatedDistanceText: routeData.estimatedDistanceText,
+            estimatedDuration: routeData.estimatedDuration,
+            estimatedDurationText: routeData.estimatedDurationText,
+            routeSteps: routeData.routeSteps,
+            waypoints: routeData.waypoints,
+            lastRouteCalculation: new Date(),
+          },
+          { new: true },
+        )
+        .populate('vehicleId', 'plateNumber brand model status')
+        .populate('driverId', 'firstName lastName email')
+        .exec();
+
+      if (!updatedRoute) {
+        throw new NotFoundException(`Route with ID ${id} not found`);
+      }
+
+      return updatedRoute;
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Error calculating route: ${error.message}`,
+      );
+    }
+  }
+
+  async getRouteWithCompletePath(id: string): Promise<any> {
+    const route = await this.findOneWithDetails(id);
+
+    // If route doesn't have Google Maps data, calculate it
+    if (!route.routePolyline || !route.decodedPath) {
+      await this.calculateAndUpdateRoute(id);
+      return this.findOneWithDetails(id);
+    }
+
+    return route;
   }
 }

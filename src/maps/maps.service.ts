@@ -7,6 +7,48 @@ import {
   TravelMode,
 } from '@googlemaps/google-maps-services-js';
 
+// Polyline decoder utility
+function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
+  const poly: Array<{ lat: number; lng: number }> = [];
+  let index = 0;
+  let len = encoded.length;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < len) {
+    let shift = 0;
+    let result = 0;
+
+    do {
+      let b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (result >= 0x20);
+
+    let dlat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+
+    do {
+      let b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (result >= 0x20);
+
+    let dlng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    poly.push({
+      lat: lat / 1e5,
+      lng: lng / 1e5,
+    });
+  }
+
+  return poly;
+}
+
 @Injectable()
 export class MapsService {
   private readonly client: Client;
@@ -95,5 +137,118 @@ export class MapsService {
       this.logger.error(`Error geocoding address: ${error.message}`);
       throw error;
     }
+  }
+
+  async calculateCompleteRoute(
+    origin: string,
+    destination: string,
+    waypoints?: string[],
+  ): Promise<{
+    routePolyline: string;
+    decodedPath: Array<{ lat: number; lng: number }>;
+    estimatedDistance: number;
+    estimatedDistanceText: string;
+    estimatedDuration: number;
+    estimatedDurationText: string;
+    routeSteps: Array<{
+      instruction: string;
+      distance: string;
+      duration: string;
+      startLocation: { lat: number; lng: number };
+      endLocation: { lat: number; lng: number };
+    }>;
+    waypoints: string[];
+  }> {
+    try {
+      const response = await this.client.directions({
+        params: {
+          origin,
+          destination,
+          waypoints,
+          mode: TravelMode.driving,
+          optimize: true, // Optimize waypoint order
+          key: this.getApiKey(),
+        },
+      });
+
+      if (response.data.status !== 'OK' || !response.data.routes.length) {
+        throw new Error(`No route found: ${response.data.status}`);
+      }
+
+      const route = response.data.routes[0];
+      const leg = route.legs[0];
+      const polyline = route.overview_polyline.points;
+
+      // Decode the polyline to get all coordinates
+      const decodedPath = decodePolyline(polyline);
+
+      // Extract route steps (turn-by-turn directions)
+      const routeSteps = leg.steps.map((step) => ({
+        instruction: step.html_instructions || 'Continue',
+        distance: step.distance.text,
+        duration: step.duration.text,
+        startLocation: {
+          lat: step.start_location.lat,
+          lng: step.start_location.lng,
+        },
+        endLocation: {
+          lat: step.end_location.lat,
+          lng: step.end_location.lng,
+        },
+      }));
+
+      return {
+        routePolyline: polyline,
+        decodedPath,
+        estimatedDistance: leg.distance.value, // in meters
+        estimatedDistanceText: leg.distance.text,
+        estimatedDuration: leg.duration.value, // in seconds
+        estimatedDurationText: leg.duration.text,
+        routeSteps,
+        waypoints: waypoints || [],
+      };
+    } catch (error) {
+      this.logger.error(`Error calculating complete route: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async calculateRouteFromPoints(
+    routePoints: Array<{
+      latitude: number;
+      longitude: number;
+      type: string;
+    }>,
+  ): Promise<{
+    routePolyline: string;
+    decodedPath: Array<{ lat: number; lng: number }>;
+    estimatedDistance: number;
+    estimatedDistanceText: string;
+    estimatedDuration: number;
+    estimatedDurationText: string;
+    routeSteps: Array<{
+      instruction: string;
+      distance: string;
+      duration: string;
+      startLocation: { lat: number; lng: number };
+      endLocation: { lat: number; lng: number };
+    }>;
+    waypoints: string[];
+  }> {
+    // Find origin and destination
+    const origin = routePoints.find((p) => p.type === 'origen');
+    const destination = routePoints.find((p) => p.type === 'destino');
+    const waypoints = routePoints
+      .filter((p) => p.type === 'parada' || p.type === 'checkpoint')
+      .map((p) => `${p.latitude},${p.longitude}`);
+
+    if (!origin || !destination) {
+      throw new Error('Route must have origin and destination points');
+    }
+
+    const originStr = `${origin.latitude},${origin.longitude}`;
+    const destinationStr = `${destination.latitude},${destination.longitude}`;
+
+    return this.calculateCompleteRoute(originStr, destinationStr, waypoints);
   }
 }
