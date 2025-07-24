@@ -29,7 +29,11 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/mapped-types": "*",
+<<<<<<< Updated upstream
     "@nestjs/mongoose": "^11.0.0",
+=======
+    "@nestjs/mongoose": "^11.0.3",
+>>>>>>> Stashed changes
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
@@ -39,6 +43,7 @@
     "class-validator": "^0.14.2",
     "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
+<<<<<<< Updated upstream
     "mongoose": "^8.0.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
@@ -46,6 +51,17 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1"
+=======
+    "mongoose": "^8.16.4",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.16.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.24"
+>>>>>>> Stashed changes
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
