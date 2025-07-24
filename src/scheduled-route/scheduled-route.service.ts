@@ -23,6 +23,8 @@ import {
 } from './dto/list-scheduled-route.dto';
 import { RouteStatus } from './entities/scheduled-route.entity';
 import { MapsService } from '../maps/maps.service';
+import { VehicleStatus } from '../vehicle/enums/vehicle-status.enum';
+import { Role } from '../auth/enums/role.enum';
 
 @Injectable()
 export class ScheduledRouteService {
@@ -107,29 +109,23 @@ export class ScheduledRouteService {
 
   async create(createDto: CreateScheduledRouteDto): Promise<ScheduledRoute> {
     try {
-      // Validar que el vehículo existe y está disponible
-      const vehicle = await this.vehicleModel.findById(createDto.vehicleId);
-      if (!vehicle) {
-        throw new NotFoundException('Vehículo no encontrado');
-      }
-
-      if (vehicle.status !== 'activo') {
-        throw new BadRequestException(
-          'El vehículo no está disponible para asignación',
-        );
-      }
-
-      // Validar que el conductor existe
+      // Validar que el conductor existe y es un conductor
       const driver = await this.userModel.findById(createDto.driverId);
       if (!driver) {
         throw new NotFoundException('Conductor no encontrado');
       }
 
-      if (driver.role !== 'conductor') {
+      if (driver.role !== Role.CONDUCTOR) {
         throw new BadRequestException(
           'El usuario seleccionado no es un conductor',
         );
       }
+
+      // Validar que el vehículo existe, está activo y tiene el conductor asignado
+      const vehicle = await this.validateVehicleDriverAssignment(
+        createDto.vehicleId,
+        createDto.driverId,
+      );
 
       // Validar fechas
       const startDate = new Date(createDto.plannedStartDate);
@@ -201,6 +197,43 @@ export class ScheduledRouteService {
       }
       throw new BadRequestException(`Error al crear la ruta: ${error.message}`);
     }
+  }
+
+  /**
+   * Validates that a vehicle has an assigned driver and the driver matches the provided driver ID
+   * @param vehicleId - The vehicle ID to validate
+   * @param driverId - The driver ID to check against
+   * @returns The vehicle document if validation passes
+   * @throws BadRequestException if validation fails
+   */
+  private async validateVehicleDriverAssignment(
+    vehicleId: Types.ObjectId,
+    driverId: Types.ObjectId,
+  ): Promise<VehicleDocument> {
+    const vehicle = await this.vehicleModel.findById(vehicleId);
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    if (vehicle.status !== VehicleStatus.ACTIVO) {
+      throw new BadRequestException(
+        'El vehículo no está disponible para asignación',
+      );
+    }
+
+    if (!vehicle.assignedDriverId) {
+      throw new BadRequestException(
+        'El vehículo no tiene un conductor asignado',
+      );
+    }
+
+    if (!vehicle.assignedDriverId.equals(driverId)) {
+      throw new BadRequestException(
+        'El conductor seleccionado no está asignado a este vehículo',
+      );
+    }
+
+    return vehicle;
   }
 
   async remove(id: string): Promise<{ message: string }> {
@@ -322,6 +355,29 @@ export class ScheduledRouteService {
           'La fecha de inicio debe ser anterior a la fecha de fin',
         );
       }
+    }
+
+    // Validar vehicle-driver assignment si se está actualizando el vehículo o conductor
+    if (updateScheduledRouteDto.vehicleId || updateScheduledRouteDto.driverId) {
+      const vehicleId =
+        updateScheduledRouteDto.vehicleId || existingRoute.vehicleId;
+      const driverId =
+        updateScheduledRouteDto.driverId || existingRoute.driverId;
+
+      // Validar que el conductor existe y es un conductor
+      const driver = await this.userModel.findById(driverId);
+      if (!driver) {
+        throw new NotFoundException('Conductor no encontrado');
+      }
+
+      if (driver.role !== Role.CONDUCTOR) {
+        throw new BadRequestException(
+          'El usuario seleccionado no es un conductor',
+        );
+      }
+
+      // Validar que el vehículo existe, está activo y tiene el conductor asignado
+      await this.validateVehicleDriverAssignment(vehicleId, driverId);
     }
 
     // Actualizar solo los campos enviados
@@ -474,5 +530,41 @@ export class ScheduledRouteService {
     }
 
     return route;
+  }
+
+  /**
+   * Gets all vehicles that are available for route assignment (active with assigned drivers)
+   * @returns Array of vehicles with their assigned drivers
+   */
+  async getAvailableVehiclesWithDrivers(): Promise<VehicleDocument[]> {
+    return this.vehicleModel
+      .find({
+        status: VehicleStatus.ACTIVO,
+        assignedDriverId: { $exists: true, $ne: null },
+      })
+      .populate('assignedDriverId', 'firstName lastName email role')
+      .exec();
+  }
+
+  /**
+   * Gets all drivers that are available for route assignment (have assigned vehicles)
+   * @returns Array of drivers with their assigned vehicles
+   */
+  async getAvailableDriversWithVehicles(): Promise<UserDocument[]> {
+    const vehiclesWithDrivers = await this.vehicleModel
+      .find({
+        status: VehicleStatus.ACTIVO,
+        assignedDriverId: { $exists: true, $ne: null },
+      })
+      .populate('assignedDriverId', 'firstName lastName email role')
+      .exec();
+
+    const driverIds = vehiclesWithDrivers.map((v) => v.assignedDriverId);
+    return this.userModel
+      .find({
+        _id: { $in: driverIds },
+        role: Role.CONDUCTOR,
+      })
+      .exec();
   }
 }
