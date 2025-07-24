@@ -108,16 +108,4 @@ export class VehicleResponseDto {
     example: 'Assigned for route to San Salvador',
   })
   assignmentNotes?: string;
-
-  @ApiProperty({
-    description: 'Vehicle creation date',
-    example: '2024-01-01T00:00:00.000Z',
-  })
-  createdAt: Date;
-
-  @ApiProperty({
-    description: 'Vehicle last update date',
-    example: '2024-01-15T08:00:00.000Z',
-  })
-  updatedAt: Date;
 }

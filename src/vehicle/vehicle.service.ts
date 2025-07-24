@@ -110,6 +110,30 @@ export class VehicleService {
       throw new BadRequestException('Can only assign active vehicles');
     }
 
+    // Check if vehicle is already assigned to the same driver
+    if (
+      vehicle.assignedDriverId &&
+      vehicle.assignedDriverId.toString() === assignmentDto.driverId
+    ) {
+      throw new BadRequestException(
+        'Vehicle is already assigned to this driver',
+      );
+    }
+
+    // Check if the driver is already assigned to another vehicle
+    const existingAssignment = await this.vehicleModel
+      .findOne({
+        assignedDriverId: assignmentDto.driverId,
+        _id: { $ne: id }, // Exclude current vehicle
+      })
+      .exec();
+
+    if (existingAssignment) {
+      throw new BadRequestException(
+        `Driver is already assigned to vehicle ${existingAssignment.plateNumber}. Please unassign first.`,
+      );
+    }
+
     const updateData = {
       assignedDriverId: assignmentDto.driverId,
       assignmentDate: assignmentDto.assignmentDate || new Date(),
@@ -212,9 +236,33 @@ export class VehicleService {
     return this.vehicleModel
       .find({
         status: VehicleStatus.ACTIVO,
-        assignedDriverId: { $exists: false },
+        $or: [
+          { assignedDriverId: { $exists: false } },
+          { assignedDriverId: null },
+        ],
       })
       .populate('assignedDriverId', 'firstName lastName email')
       .exec();
+  }
+
+  async isVehicleAvailable(id: string): Promise<boolean> {
+    const vehicle = await this.vehicleModel.findById(id).exec();
+
+    if (!vehicle) {
+      return false;
+    }
+
+    return (
+      vehicle.status === VehicleStatus.ACTIVO &&
+      (!vehicle.assignedDriverId || vehicle.assignedDriverId === null)
+    );
+  }
+
+  async isDriverAvailable(driverId: string): Promise<boolean> {
+    const existingAssignment = await this.vehicleModel
+      .findOne({ assignedDriverId: driverId })
+      .exec();
+
+    return !existingAssignment;
   }
 }
