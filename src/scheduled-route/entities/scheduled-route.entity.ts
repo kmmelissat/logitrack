@@ -13,6 +13,7 @@ export type ScheduledRouteDocument = ScheduledRoute & Document;
 @Schema({
   collection: 'scheduled_routes',
   timestamps: true,
+  versionKey: false, // This excludes the __v field from responses
 })
 export class ScheduledRoute {
   _id: Types.ObjectId;

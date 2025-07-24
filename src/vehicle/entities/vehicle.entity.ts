@@ -7,6 +7,7 @@ export type VehicleDocument = Vehicle & Document;
 @Schema({
   collection: 'vehicles',
   timestamps: true,
+  versionKey: false, // This excludes the __v field from responses
 })
 export class Vehicle {
   _id: Types.ObjectId;

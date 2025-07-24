@@ -58,4 +58,4 @@ export class UserResponseDto {
     example: '2024-01-15T08:00:00.000Z',
   })
   updatedAt: Date;
-} 
+}

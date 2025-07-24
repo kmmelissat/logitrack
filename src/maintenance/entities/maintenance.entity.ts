@@ -6,6 +6,7 @@ export type MaintenanceDocument = Maintenance & Document;
 @Schema({
   collection: 'maintenances',
   timestamps: true,
+  versionKey: false, // This excludes the __v field from responses
 })
 export class Maintenance {
   _id: Types.ObjectId;

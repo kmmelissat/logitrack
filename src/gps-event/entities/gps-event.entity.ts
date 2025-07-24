@@ -25,6 +25,7 @@ export type GpsEventDocument = GpsEvent & Document;
 @Schema({
   collection: 'gps_events',
   timestamps: true,
+  versionKey: false, // This excludes the __v field from responses
 })
 export class GpsEvent {
   _id: Types.ObjectId;
