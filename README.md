@@ -1,6 +1,6 @@
 # LogiTrack Fleet Management API
 
-A backend API for managing vehicle fleets, routes, GPS tracking, and maintenance in a logistics company operating in Central America. Built with [NestJS](https://nestjs.com/), [PostgreSQL](https://www.postgresql.org/), and [JWT Authentication](https://jwt.io/).
+A backend API for managing vehicle fleets, routes, GPS tracking, and maintenance in a logistics company operating in Central America. Built with [NestJS](https://nestjs.com/), [MongoDB](https://www.mongodb.com/), and [JWT Authentication](https://jwt.io/).
 
 ---
 
@@ -24,7 +24,7 @@ This API centralizes:
 ## ⚙️ Tech Stack
 
 - **Backend Framework**: NestJS (TypeScript)
-- **Database**: PostgreSQL (with Prisma or TypeORM)
+- **Database**: MongoDB
 - **Authentication**: JWT + Role-based Guards
 - **API Docs**: Swagger (`@nestjs/swagger`)
 - **Testing**: Jest (unit, integration, e2e)
