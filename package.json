@@ -18,6 +18,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:integration": "jest --testPathPattern=test/integration",
+    "test:all": "npm run test && npm run test:integration && npm run test:e2e",
+    "test:routes": "node test/scripts/test-routes.js",
+    "test:assign-drivers": "node test/scripts/assign-drivers.js",
     "seed": "ts-node -r tsconfig-paths/register src/database/seeds/seed.ts",
     "seed:users": "ts-node -r tsconfig-paths/register src/database/seeds/users-only.seed.ts",
     "test:data": "ts-node -r tsconfig-paths/register src/database/test-data.ts"
@@ -34,6 +38,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
     "@types/bcrypt": "^5.0.2",
+    "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",

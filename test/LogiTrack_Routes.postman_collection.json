@@ -1,0 +1,314 @@
+{
+  "info": {
+    "name": "LogiTrack Routes & Route Points",
+    "description": "Collection for testing scheduled routes and route points functionality",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@logitrack.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.access_token);",
+                  "    console.log('Token saved:', response.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Available Resources",
+      "item": [
+        {
+          "name": "Get Available Vehicles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/scheduled-routes/available-vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["scheduled-routes", "available-vehicles"]
+            }
+          }
+        },
+        {
+          "name": "Get Available Drivers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/scheduled-routes/available-drivers",
+              "host": ["{{baseUrl}}"],
+              "path": ["scheduled-routes", "available-drivers"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scheduled Routes",
+      "item": [
+        {
+          "name": "Create Route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ruta San Salvador - Tegucigalpa\",\n  \"description\": \"Ruta comercial diaria entre capitales\",\n  \"plannedStartDate\": \"2025-01-20T06:00:00.000Z\",\n  \"plannedEndDate\": \"2025-01-20T18:00:00.000Z\",\n  \"origin\": \"Terminal San Salvador\",\n  \"destination\": \"Terminal Tegucigalpa\",\n  \"estimatedDistance\": 250.5,\n  \"estimatedCost\": 1500.00,\n  \"notes\": \"Carga frágil - manejo especial\",\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"driverId\": \"{{driverId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/scheduled-routes",
+              "host": ["{{baseUrl}}"],
+              "path": ["scheduled-routes"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('routeId', response._id);",
+                  "    console.log('Route created:', response._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/scheduled-routes?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["scheduled-routes"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Route Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/scheduled-routes/{{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["scheduled-routes", "{{routeId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Route",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"en_progreso\",\n  \"notes\": \"Ruta iniciada según lo planificado\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/scheduled-routes/{{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["scheduled-routes", "{{routeId}}"]
+            }
+          }
+        },
+        {
+          "name": "Calculate Route",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/scheduled-routes/{{routeId}}/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["scheduled-routes", "{{routeId}}", "calculate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Route Points",
+      "item": [
+        {
+          "name": "Create Origin Point",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Terminal San Salvador\",\n  \"description\": \"Punto de origen\",\n  \"type\": \"origen\",\n  \"latitude\": 13.6929,\n  \"longitude\": -89.2182,\n  \"address\": \"Terminal de Buses San Salvador\",\n  \"sequenceOrder\": 1,\n  \"plannedArrivalTime\": \"2025-01-20T06:00:00.000Z\",\n  \"plannedDepartureTime\": \"2025-01-20T06:30:00.000Z\",\n  \"estimatedStayMinutes\": 30,\n  \"scheduledRouteId\": \"{{routeId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/route-points",
+              "host": ["{{baseUrl}}"],
+              "path": ["route-points"]
+            }
+          }
+        },
+        {
+          "name": "Create Checkpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Checkpoint Santa Ana\",\n  \"description\": \"Punto de control intermedio\",\n  \"type\": \"checkpoint\",\n  \"latitude\": 13.9941,\n  \"longitude\": -89.5598,\n  \"address\": \"Santa Ana, El Salvador\",\n  \"sequenceOrder\": 2,\n  \"plannedArrivalTime\": \"2025-01-20T08:00:00.000Z\",\n  \"plannedDepartureTime\": \"2025-01-20T08:15:00.000Z\",\n  \"estimatedStayMinutes\": 15,\n  \"radiusMeters\": 100,\n  \"scheduledRouteId\": \"{{routeId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/route-points",
+              "host": ["{{baseUrl}}"],
+              "path": ["route-points"]
+            }
+          }
+        },
+        {
+          "name": "Create Destination Point",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Terminal Tegucigalpa\",\n  \"description\": \"Punto de destino\",\n  \"type\": \"destino\",\n  \"latitude\": 14.0723,\n  \"longitude\": -87.1921,\n  \"address\": \"Terminal de Buses Tegucigalpa\",\n  \"sequenceOrder\": 3,\n  \"plannedArrivalTime\": \"2025-01-20T17:30:00.000Z\",\n  \"plannedDepartureTime\": \"2025-01-20T18:00:00.000Z\",\n  \"estimatedStayMinutes\": 30,\n  \"scheduledRouteId\": \"{{routeId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/route-points",
+              "host": ["{{baseUrl}}"],
+              "path": ["route-points"]
+            }
+          }
+        },
+        {
+          "name": "List Route Points",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/route-points?routeId={{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["route-points"],
+              "query": [
+                {
+                  "key": "routeId",
+                  "value": "{{routeId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Route Point",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actualArrivalTime\": \"2025-01-20T08:05:00.000Z\",\n  \"actualDepartureTime\": \"2025-01-20T08:20:00.000Z\",\n  \"isCompleted\": true,\n  \"notes\": \"Llegada 5 minutos tarde, salida 5 minutos tarde\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/route-points/{{pointId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["route-points", "{{pointId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

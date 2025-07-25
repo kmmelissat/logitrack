@@ -227,7 +227,7 @@ export class ScheduledRouteService {
       );
     }
 
-    if (!vehicle.assignedDriverId.equals(driverId)) {
+    if (vehicle.assignedDriverId.toString() !== driverId.toString()) {
       throw new BadRequestException(
         'El conductor seleccionado no está asignado a este vehículo',
       );
