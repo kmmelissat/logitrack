@@ -267,12 +267,14 @@ export class VehicleService {
   }
 
   async getSummary() {
-    const [total, activos, taller, descontinuados] = await Promise.all([
+    const [total, activos, taller, descontinuados, asignados, sinAsignar] = await Promise.all([
       this.vehicleModel.countDocuments(),
-      this.vehicleModel.countDocuments({ status: 'activo' }),
-      this.vehicleModel.countDocuments({ status: 'taller' }),
-      this.vehicleModel.countDocuments({ status: 'descontinuado' }),
+      this.vehicleModel.countDocuments({ status: VehicleStatus.ACTIVO }),
+      this.vehicleModel.countDocuments({ status: VehicleStatus.TALLER }),
+      this.vehicleModel.countDocuments({ status: VehicleStatus.DESCONTINUADO }),
+      this.vehicleModel.countDocuments({ assignedDriverId: { $ne: null } }),
+      this.vehicleModel.countDocuments({ $or: [{ assignedDriverId: null }, { assignedDriverId: { $exists: false } }] }),
     ]);
-    return { total, activos, taller, descontinuados };
+    return { total, activos, taller, descontinuados, asignados, sinAsignar };
   }
 }
