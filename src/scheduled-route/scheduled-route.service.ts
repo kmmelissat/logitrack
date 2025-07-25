@@ -378,6 +378,42 @@ export class ScheduledRouteService {
 
       // Validar que el vehículo existe, está activo y tiene el conductor asignado
       await this.validateVehicleDriverAssignment(vehicleId, driverId);
+
+      // Verificar conflictos de programación si se está cambiando el vehículo o conductor
+      if (
+        updateScheduledRouteDto.vehicleId ||
+        updateScheduledRouteDto.driverId
+      ) {
+        const startDate =
+          updateScheduledRouteDto.plannedStartDate ||
+          existingRoute.plannedStartDate;
+        const endDate =
+          updateScheduledRouteDto.plannedEndDate ||
+          existingRoute.plannedEndDate;
+
+        const conflictingRoute = await this.scheduledRouteModel.findOne({
+          _id: { $ne: new Types.ObjectId(id) }, // Exclude current route
+          status: { $in: ['planificada', 'en_progreso'] },
+          $or: [
+            {
+              vehicleId: vehicleId,
+              plannedStartDate: { $lte: endDate },
+              plannedEndDate: { $gte: startDate },
+            },
+            {
+              driverId: driverId,
+              plannedStartDate: { $lte: endDate },
+              plannedEndDate: { $gte: startDate },
+            },
+          ],
+        });
+
+        if (conflictingRoute) {
+          throw new BadRequestException(
+            'Existe un conflicto de programación con otra ruta',
+          );
+        }
+      }
     }
 
     // Actualizar solo los campos enviados
