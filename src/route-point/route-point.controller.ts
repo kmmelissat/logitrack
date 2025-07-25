@@ -8,7 +8,6 @@ import {
   UseGuards,
   Patch,
   Delete,
-  Put,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -201,80 +200,6 @@ export class RoutePointController {
     return routePoints;
   }
 
-  @Get('route/:scheduledRouteId')
-  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
-  @ApiOperation({
-    summary: 'Get all points for a specific route',
-    description:
-      'Retrieve all route points for a specific scheduled route, ordered by sequence',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Route points retrieved successfully',
-  })
-  @ApiResponse({ status: 404, description: 'Route not found' })
-  async findByRoute(@Param('scheduledRouteId') scheduledRouteId: string) {
-    return this.routePointService.findByRoute(scheduledRouteId);
-  }
-
-  @Get('route/:scheduledRouteId/summary')
-  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
-  @ApiOperation({
-    summary: 'Get route summary with points',
-    description:
-      'Get a summary of route points including completion status and statistics',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Route summary retrieved successfully',
-  })
-  @ApiResponse({ status: 404, description: 'Route not found' })
-  async getRouteSummary(@Param('scheduledRouteId') scheduledRouteId: string) {
-    return this.routePointService.getRouteSummary(scheduledRouteId);
-  }
-
-  @Get('nearby')
-  @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
-  @ApiOperation({
-    summary: 'Find nearby route points',
-    description:
-      'Find route points within a specified radius of given coordinates',
-  })
-  @ApiQuery({
-    name: 'latitude',
-    required: true,
-    description: 'Latitude coordinate',
-  })
-  @ApiQuery({
-    name: 'longitude',
-    required: true,
-    description: 'Longitude coordinate',
-  })
-  @ApiQuery({
-    name: 'radius',
-    required: false,
-    description: 'Search radius in meters (default: 1000)',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Nearby points retrieved successfully',
-  })
-  async findNearbyPoints(
-    @Query('latitude') latitude: string,
-    @Query('longitude') longitude: string,
-    @Query('radius') radius?: string,
-  ) {
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
-    const radiusMeters = radius ? parseFloat(radius) : 1000;
-
-    if (isNaN(lat) || isNaN(lng)) {
-      throw new Error('Invalid coordinates provided');
-    }
-
-    return this.routePointService.findNearbyPoints(lat, lng, radiusMeters);
-  }
-
   @Get(':id')
   @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
   @ApiOperation({
@@ -339,58 +264,6 @@ export class RoutePointController {
     return this.routePointService.updateWithDistanceRecalculation(
       id,
       updateRoutePointDto,
-    );
-  }
-
-  @Patch(':id/complete')
-  @Roles(Role.CONDUCTOR)
-  @ApiOperation({
-    summary: 'Mark route point as completed (Driver only)',
-    description:
-      'Mark a route point as completed and record actual arrival time',
-  })
-  @ApiResponse({ status: 200, description: 'Route point marked as completed' })
-  @ApiResponse({ status: 404, description: 'Route point not found' })
-  async markAsCompleted(@Param('id') id: string) {
-    return this.routePointService.markAsCompleted(id);
-  }
-
-  @Put('route/:scheduledRouteId/reorder')
-  @Roles(Role.ADMIN, Role.LOGISTICA)
-  @ApiOperation({
-    summary: 'Reorder route points',
-    description: 'Reorder the sequence of points in a route',
-  })
-  @ApiBody({
-    description: 'Array of point IDs in the desired order',
-    examples: {
-      reorder: {
-        summary: 'Reorder route points',
-        value: [
-          '507f1f77bcf86cd799439011',
-          '507f1f77bcf86cd799439012',
-          '507f1f77bcf86cd799439013',
-        ],
-      },
-    },
-  })
-  @ApiResponse({
-    status: 200,
-    description:
-      'Route points reordered successfully with recalculated driving distance',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid point IDs or points do not belong to route',
-  })
-  @ApiResponse({ status: 404, description: 'Route not found' })
-  async reorderPoints(
-    @Param('scheduledRouteId') scheduledRouteId: string,
-    @Body() pointIds: string[],
-  ) {
-    return this.routePointService.reorderPointsWithDistanceRecalculation(
-      scheduledRouteId,
-      pointIds,
     );
   }
 
