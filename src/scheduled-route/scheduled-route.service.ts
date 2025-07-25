@@ -570,35 +570,132 @@ export class ScheduledRouteService {
 
   /**
    * Gets all vehicles that are available for route assignment (active with assigned drivers)
+   * Optionally filters by date range to check for scheduling conflicts
+   * @param startDate - Optional start date to check availability
+   * @param endDate - Optional end date to check availability
    * @returns Array of vehicles with their assigned drivers
    */
-  async getAvailableVehiclesWithDrivers(): Promise<VehicleDocument[]> {
-    return this.vehicleModel
+  async getAvailableVehiclesWithDrivers(
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<VehicleDocument[]> {
+    // Get all active vehicles with assigned drivers
+    const vehicles = await this.vehicleModel
       .find({
         status: VehicleStatus.ACTIVO,
         assignedDriverId: { $exists: true, $ne: null },
       })
       .populate('assignedDriverId', 'firstName lastName email role')
       .exec();
+
+    // If no date range provided, return all vehicles
+    if (!startDate || !endDate) {
+      return vehicles;
+    }
+
+    // Filter out vehicles that have conflicting routes
+    const availableVehicles: VehicleDocument[] = [];
+
+    for (const vehicle of vehicles) {
+      // Check for existing routes that overlap with the requested time
+      const conflictingRoutes = await this.scheduledRouteModel.find({
+        vehicleId: vehicle._id,
+        $or: [
+          // Route starts during the requested period
+          {
+            plannedStartDate: { $gte: startDate, $lt: endDate },
+          },
+          // Route ends during the requested period
+          {
+            plannedEndDate: { $gt: startDate, $lte: endDate },
+          },
+          // Route completely encompasses the requested period
+          {
+            plannedStartDate: { $lte: startDate },
+            plannedEndDate: { $gte: endDate },
+          },
+        ],
+        // Exclude completed and cancelled routes
+        status: { $nin: ['completada', 'cancelada'] },
+      });
+
+      // If no conflicts, vehicle is available
+      if (conflictingRoutes.length === 0) {
+        availableVehicles.push(vehicle);
+      }
+    }
+
+    return availableVehicles;
   }
 
   /**
    * Gets all drivers that are available for route assignment (have assigned vehicles)
+   * Optionally filters by date range to check for scheduling conflicts
+   * @param startDate - Optional start date to check availability
+   * @param endDate - Optional end date to check availability
    * @returns Array of drivers with their assigned vehicles
    */
-  async getAvailableDriversWithVehicles(): Promise<UserDocument[]> {
+  async getAvailableDriversWithVehicles(
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<UserDocument[]> {
+    // Get all active vehicles with assigned drivers (without populate to avoid type issues)
     const vehiclesWithDrivers = await this.vehicleModel
       .find({
         status: VehicleStatus.ACTIVO,
         assignedDriverId: { $exists: true, $ne: null },
       })
-      .populate('assignedDriverId', 'firstName lastName email role')
       .exec();
 
-    const driverIds = vehiclesWithDrivers.map((v) => v.assignedDriverId);
+    const driverIds = vehiclesWithDrivers
+      .map((v) => v.assignedDriverId)
+      .filter((id): id is Types.ObjectId => id !== null && id !== undefined);
+
+    // If no date range provided, return all drivers
+    if (!startDate || !endDate) {
+      return this.userModel
+        .find({
+          _id: { $in: driverIds },
+          role: Role.CONDUCTOR,
+        })
+        .exec();
+    }
+
+    // Filter out drivers that have conflicting routes
+    const availableDriverIds: Types.ObjectId[] = [];
+
+    for (const driverId of driverIds) {
+      // Check for existing routes that overlap with the requested time
+      const conflictingRoutes = await this.scheduledRouteModel.find({
+        driverId: driverId,
+        $or: [
+          // Route starts during the requested period
+          {
+            plannedStartDate: { $gte: startDate, $lt: endDate },
+          },
+          // Route ends during the requested period
+          {
+            plannedEndDate: { $gt: startDate, $lte: endDate },
+          },
+          // Route completely encompasses the requested period
+          {
+            plannedStartDate: { $lte: startDate },
+            plannedEndDate: { $gte: endDate },
+          },
+        ],
+        // Exclude completed and cancelled routes
+        status: { $nin: ['completada', 'cancelada'] },
+      });
+
+      // If no conflicts, driver is available
+      if (conflictingRoutes.length === 0) {
+        availableDriverIds.push(driverId);
+      }
+    }
+
     return this.userModel
       .find({
-        _id: { $in: driverIds },
+        _id: { $in: availableDriverIds },
         role: Role.CONDUCTOR,
       })
       .exec();

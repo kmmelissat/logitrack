@@ -24,6 +24,7 @@
     "test:assign-drivers": "node test/scripts/assign-drivers.js",
     "seed": "ts-node -r tsconfig-paths/register src/database/seeds/seed.ts",
     "seed:users": "ts-node -r tsconfig-paths/register src/database/seeds/users-only.seed.ts",
+    "seed:vehicles": "ts-node -r tsconfig-paths/register src/database/seeds/vehicle-assignment-only.seed.ts",
     "test:data": "ts-node -r tsconfig-paths/register src/database/test-data.ts"
   },
   "dependencies": {

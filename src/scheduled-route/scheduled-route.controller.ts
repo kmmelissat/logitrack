@@ -19,6 +19,7 @@ import {
   ApiBody,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -80,16 +81,50 @@ export class ScheduledRouteController {
   @ApiOperation({
     summary: 'Obtener vehículos disponibles con conductores asignados',
     description:
-      'Obtiene todos los vehículos activos que tienen conductores asignados',
+      'Obtiene vehículos activos con conductores asignados, opcionalmente filtrados por disponibilidad de horario',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Fecha de inicio para verificar disponibilidad (ISO string)',
+    example: '2025-07-26T06:00:00.000Z',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'Fecha de fin para verificar disponibilidad (ISO string)',
+    example: '2025-07-26T18:00:00.000Z',
   })
   @ApiResponse({
     status: 200,
     description: 'Lista de vehículos disponibles obtenida exitosamente',
   })
-  async getAvailableVehicles() {
+  async getAvailableVehicles(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
     try {
-      return await this.scheduledRouteService.getAvailableVehiclesWithDrivers();
+      // Parse dates if provided
+      const parsedStartDate = startDate ? new Date(startDate) : undefined;
+      const parsedEndDate = endDate ? new Date(endDate) : undefined;
+
+      // Validate dates if both are provided
+      if (parsedStartDate && parsedEndDate) {
+        if (parsedStartDate >= parsedEndDate) {
+          throw new BadRequestException(
+            'La fecha de inicio debe ser anterior a la fecha de fin',
+          );
+        }
+      }
+
+      return await this.scheduledRouteService.getAvailableVehiclesWithDrivers(
+        parsedStartDate,
+        parsedEndDate,
+      );
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new HttpException(
         'Error interno del servidor',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -101,16 +136,51 @@ export class ScheduledRouteController {
   @Roles(Role.ADMIN, Role.LOGISTICA)
   @ApiOperation({
     summary: 'Obtener conductores disponibles con vehículos asignados',
-    description: 'Obtiene todos los conductores que tienen vehículos asignados',
+    description:
+      'Obtiene conductores con vehículos asignados, opcionalmente filtrados por disponibilidad de horario',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Fecha de inicio para verificar disponibilidad (ISO string)',
+    example: '2025-07-26T06:00:00.000Z',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'Fecha de fin para verificar disponibilidad (ISO string)',
+    example: '2025-07-26T18:00:00.000Z',
   })
   @ApiResponse({
     status: 200,
     description: 'Lista de conductores disponibles obtenida exitosamente',
   })
-  async getAvailableDrivers() {
+  async getAvailableDrivers(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
     try {
-      return await this.scheduledRouteService.getAvailableDriversWithVehicles();
+      // Parse dates if provided
+      const parsedStartDate = startDate ? new Date(startDate) : undefined;
+      const parsedEndDate = endDate ? new Date(endDate) : undefined;
+
+      // Validate dates if both are provided
+      if (parsedStartDate && parsedEndDate) {
+        if (parsedStartDate >= parsedEndDate) {
+          throw new BadRequestException(
+            'La fecha de inicio debe ser anterior a la fecha de fin',
+          );
+        }
+      }
+
+      return await this.scheduledRouteService.getAvailableDriversWithVehicles(
+        parsedStartDate,
+        parsedEndDate,
+      );
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new HttpException(
         'Error interno del servidor',
         HttpStatus.INTERNAL_SERVER_ERROR,
