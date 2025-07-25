@@ -94,7 +94,15 @@ export class RoutePointService {
         throw new BadRequestException('Invalid longitude value');
       }
 
-      const routePoint = new this.routePointModel(createRoutePointDto);
+      // Ensure scheduledRouteId is converted to ObjectId
+      const routePointData = {
+        ...createRoutePointDto,
+        scheduledRouteId: new Types.ObjectId(
+          createRoutePointDto.scheduledRouteId,
+        ),
+      };
+
+      const routePoint = new this.routePointModel(routePointData);
       const savedRoutePoint = await routePoint.save();
 
       // Populate the saved route point with scheduledRouteId
@@ -183,10 +191,14 @@ export class RoutePointService {
         return dto;
       });
 
-      // Create all route points
-      const routePoints = pointsWithSequence.map(
-        (dto) => new this.routePointModel(dto),
-      );
+      // Create all route points with proper ObjectId conversion
+      const routePoints = pointsWithSequence.map((dto) => {
+        const routePointData = {
+          ...dto,
+          scheduledRouteId: new Types.ObjectId(dto.scheduledRouteId),
+        };
+        return new this.routePointModel(routePointData);
+      });
       const savedRoutePoints =
         await this.routePointModel.insertMany(routePoints);
 
@@ -267,10 +279,14 @@ export class RoutePointService {
         return dto;
       });
 
-      // Create all route points
-      const routePoints = pointsWithSequence.map(
-        (dto) => new this.routePointModel(dto),
-      );
+      // Create all route points with proper ObjectId conversion
+      const routePoints = pointsWithSequence.map((dto) => {
+        const routePointData = {
+          ...dto,
+          scheduledRouteId: new Types.ObjectId(dto.scheduledRouteId),
+        };
+        return new this.routePointModel(routePointData);
+      });
       const savedRoutePoints =
         await this.routePointModel.insertMany(routePoints);
 

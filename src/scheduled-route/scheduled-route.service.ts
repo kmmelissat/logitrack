@@ -444,8 +444,8 @@ export class ScheduledRouteService {
   async formatRouteResponse(route: ScheduledRouteDocument): Promise<any> {
     const routeObj = route.toObject();
 
-    // Buscar puntos si no están incluidos
-    if (!routeObj.points) {
+    // Buscar puntos si no están incluidos o si es un array vacío
+    if (!routeObj.points || routeObj.points.length === 0) {
       const points = await this.routePointModel
         .find({ scheduledRouteId: route._id })
         .populate('scheduledRouteId', 'name origin destination')
