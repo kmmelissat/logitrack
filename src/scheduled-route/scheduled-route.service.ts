@@ -517,6 +517,7 @@ export class ScheduledRouteService {
           latitude: point.latitude,
           longitude: point.longitude,
           type: point.type,
+          sequenceOrder: point.sequenceOrder,
         })),
       );
 

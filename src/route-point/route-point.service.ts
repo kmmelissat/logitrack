@@ -213,6 +213,7 @@ export class RoutePointService {
         latitude: point.latitude,
         longitude: point.longitude,
         type: point.type,
+        sequenceOrder: point.sequenceOrder,
       }));
 
       const drivingDistance =
@@ -454,6 +455,7 @@ export class RoutePointService {
         latitude: point.latitude,
         longitude: point.longitude,
         type: point.type,
+        sequenceOrder: point.sequenceOrder,
       }));
 
       const drivingDistance =
@@ -534,6 +536,7 @@ export class RoutePointService {
         latitude: point.latitude,
         longitude: point.longitude,
         type: point.type,
+        sequenceOrder: point.sequenceOrder,
       }));
 
       const drivingDistance =
@@ -618,6 +621,7 @@ export class RoutePointService {
         latitude: point.latitude,
         longitude: point.longitude,
         type: point.type,
+        sequenceOrder: point.sequenceOrder,
       }));
 
       const drivingDistance =

@@ -166,7 +166,7 @@ export class MapsService {
           destination,
           waypoints,
           mode: TravelMode.driving,
-          optimize: true, // Optimize waypoint order
+          optimize: false, // Don't optimize - respect the order we provide
           key: this.getApiKey(),
         },
       });
@@ -218,6 +218,7 @@ export class MapsService {
       latitude: number;
       longitude: number;
       type: string;
+      sequenceOrder?: number;
     }>,
   ): Promise<{
     routePolyline: string;
@@ -235,19 +236,41 @@ export class MapsService {
     }>;
     waypoints: string[];
   }> {
-    // Find origin and destination
-    const origin = routePoints.find((p) => p.type === 'origen');
-    const destination = routePoints.find((p) => p.type === 'destino');
-    const waypoints = routePoints
-      .filter((p) => p.type === 'parada' || p.type === 'checkpoint')
-      .map((p) => `${p.latitude},${p.longitude}`);
-
-    if (!origin || !destination) {
-      throw new Error('Route must have origin and destination points');
+    if (routePoints.length < 2) {
+      throw new Error('Route must have at least 2 points');
     }
+
+    // Sort points by sequenceOrder if available, otherwise by their order in the array
+    const sortedPoints = [...routePoints].sort((a, b) => {
+      if (a.sequenceOrder !== undefined && b.sequenceOrder !== undefined) {
+        return a.sequenceOrder - b.sequenceOrder;
+      }
+      return 0;
+    });
+
+    // Use the first point as origin and last point as destination
+    const origin = sortedPoints[0];
+    const destination = sortedPoints[sortedPoints.length - 1];
+
+    // All points in between become waypoints (excluding first and last)
+    const waypoints = sortedPoints
+      .slice(1, -1) // Remove first and last points
+      .map((p) => `${p.latitude},${p.longitude}`);
 
     const originStr = `${origin.latitude},${origin.longitude}`;
     const destinationStr = `${destination.latitude},${destination.longitude}`;
+
+    // Google Maps has a limit of 23 waypoints, so we need to handle this
+    if (waypoints.length > 23) {
+      this.logger.warn(
+        `Route has ${waypoints.length} waypoints, but Google Maps only supports 23. Using first 23 waypoints.`,
+      );
+      waypoints.splice(23); // Keep only first 23 waypoints
+    }
+
+    this.logger.log(
+      `Calculating route with ${waypoints.length + 2} total points (${waypoints.length} waypoints)`,
+    );
 
     return this.calculateCompleteRoute(originStr, destinationStr, waypoints);
   }
