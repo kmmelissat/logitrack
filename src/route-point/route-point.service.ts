@@ -219,6 +219,31 @@ export class RoutePointService {
       const drivingDistance =
         await this.mapsService.calculateRouteFromPoints(routePointsForMaps);
 
+      // Save the calculated data to the scheduled route
+      try {
+        console.log(
+          `=== Saving calculated data to scheduled route: ${routeId} ===`,
+        );
+        await this.scheduledRouteModel.findByIdAndUpdate(routeId, {
+          routePolyline: drivingDistance.routePolyline,
+          decodedPath: drivingDistance.decodedPath,
+          waypoints: drivingDistance.waypoints,
+          routeSteps: drivingDistance.routeSteps,
+          estimatedDistance: drivingDistance.estimatedDistance,
+          estimatedDistanceText: drivingDistance.estimatedDistanceText,
+          estimatedDuration: drivingDistance.estimatedDuration,
+          estimatedDurationText: drivingDistance.estimatedDurationText,
+        });
+        console.log(
+          `=== Successfully saved route data to scheduled route: ${routeId} ===`,
+        );
+      } catch (error) {
+        console.error(
+          `=== Error saving route data to scheduled route ${routeId}:`,
+          error.message,
+        );
+      }
+
       return {
         routePoints: populatedRoutePoints,
         drivingDistance,

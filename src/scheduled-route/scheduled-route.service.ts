@@ -492,24 +492,49 @@ export class ScheduledRouteService {
         delete cleanResponse[key];
       }
     });
+
+    // Log the response data for debugging
+    console.log(`Formatting route response for route: ${routeObj.name}`);
+    console.log(`- Has polyline: ${!!cleanResponse.routePolyline}`);
+    console.log(`- Has decoded path: ${!!cleanResponse.decodedPath}`);
+    console.log(
+      `- Distance: ${cleanResponse.estimatedDistanceText} (${cleanResponse.estimatedDistance}m)`,
+    );
+    console.log(
+      `- Duration: ${cleanResponse.estimatedDurationText} (${cleanResponse.estimatedDuration}s)`,
+    );
+    console.log(`- Waypoints: ${cleanResponse.waypoints?.length || 0}`);
+    console.log(`- Route steps: ${cleanResponse.routeSteps?.length || 0}`);
+    console.log(`- Route points: ${cleanResponse.points?.length || 0}`);
+
     return cleanResponse;
   }
 
   async calculateAndUpdateRoute(id: string): Promise<ScheduledRoute> {
+    console.log(`=== calculateAndUpdateRoute START for ID: ${id} ===`);
+
     try {
       // Get the route with all its points
+      console.log(`Getting route details for ID: ${id}`);
       const route = await this.findOneWithDetails(id);
+      console.log(`Route found: ${route.name}`);
+
+      console.log(`Getting route points for ID: ${id}`);
       const routePoints = await this.routePointModel
         .find({ scheduledRouteId: id })
         .populate('scheduledRouteId', 'name origin destination')
         .sort({ sequenceOrder: 1 })
         .exec();
 
+      console.log(`Found ${routePoints.length} route points`);
+
       if (routePoints.length < 2) {
         throw new BadRequestException(
           'Route must have at least origin and destination points',
         );
       }
+
+      console.log(`Calculating route for ${routePoints.length} points`);
 
       // Calculate route using Google Maps
       const routeData = await this.mapsService.calculateRouteFromPoints(
@@ -521,23 +546,74 @@ export class ScheduledRouteService {
         })),
       );
 
+      console.log(`Route calculation completed:`);
+      console.log(
+        `- Distance: ${routeData.estimatedDistanceText} (${routeData.estimatedDistance}m)`,
+      );
+      console.log(
+        `- Duration: ${routeData.estimatedDurationText} (${routeData.estimatedDuration}s)`,
+      );
+      console.log(`- Waypoints: ${routeData.waypoints.length}`);
+      console.log(`- Route steps: ${routeData.routeSteps.length}`);
+      console.log(
+        `- Polyline length: ${routeData.routePolyline.length} characters`,
+      );
+      console.log(`- Decoded path points: ${routeData.decodedPath.length}`);
+
       // Update the route with Google Maps data
+      const updateData = {
+        routePolyline: routeData.routePolyline,
+        decodedPath: routeData.decodedPath,
+        estimatedDistance: routeData.estimatedDistance,
+        estimatedDistanceText: routeData.estimatedDistanceText,
+        estimatedDuration: routeData.estimatedDuration,
+        estimatedDurationText: routeData.estimatedDurationText,
+        routeSteps: routeData.routeSteps,
+        waypoints: routeData.waypoints,
+        lastRouteCalculation: new Date(),
+      };
+
+      console.log(`Saving route data to database for route ID: ${id}`);
+      console.log(`Update data to save:`);
+      console.log(
+        `- routePolyline: ${updateData.routePolyline ? `YES (${updateData.routePolyline.length} chars)` : 'NO'}`,
+      );
+      console.log(
+        `- decodedPath: ${updateData.decodedPath ? `YES (${updateData.decodedPath.length} points)` : 'NO'}`,
+      );
+      console.log(`- estimatedDistance: ${updateData.estimatedDistance}`);
+      console.log(
+        `- estimatedDistanceText: ${updateData.estimatedDistanceText}`,
+      );
+      console.log(`- estimatedDuration: ${updateData.estimatedDuration}`);
+      console.log(
+        `- estimatedDurationText: ${updateData.estimatedDurationText}`,
+      );
+      console.log(
+        `- routeSteps: ${updateData.routeSteps ? `YES (${updateData.routeSteps.length} steps)` : 'NO'}`,
+      );
+      console.log(
+        `- waypoints: ${updateData.waypoints ? `YES (${updateData.waypoints.length} waypoints)` : 'NO'}`,
+      );
+      console.log(`- lastRouteCalculation: ${updateData.lastRouteCalculation}`);
+
+      // Log the raw data structure
+      console.log(`Raw routeData structure:`);
+      console.log(
+        `- routeData.routePolyline type: ${typeof routeData.routePolyline}`,
+      );
+      console.log(
+        `- routeData.decodedPath type: ${typeof routeData.decodedPath}, length: ${Array.isArray(routeData.decodedPath) ? routeData.decodedPath.length : 'NOT_ARRAY'}`,
+      );
+      console.log(
+        `- routeData.routeSteps type: ${typeof routeData.routeSteps}, length: ${Array.isArray(routeData.routeSteps) ? routeData.routeSteps.length : 'NOT_ARRAY'}`,
+      );
+      console.log(
+        `- routeData.waypoints type: ${typeof routeData.waypoints}, length: ${Array.isArray(routeData.waypoints) ? routeData.waypoints.length : 'NOT_ARRAY'}`,
+      );
+
       const updatedRoute = await this.scheduledRouteModel
-        .findByIdAndUpdate(
-          id,
-          {
-            routePolyline: routeData.routePolyline,
-            decodedPath: routeData.decodedPath,
-            estimatedDistance: routeData.estimatedDistance,
-            estimatedDistanceText: routeData.estimatedDistanceText,
-            estimatedDuration: routeData.estimatedDuration,
-            estimatedDurationText: routeData.estimatedDurationText,
-            routeSteps: routeData.routeSteps,
-            waypoints: routeData.waypoints,
-            lastRouteCalculation: new Date(),
-          },
-          { new: true },
-        )
+        .findByIdAndUpdate(id, updateData, { new: true })
         .populate('vehicleId', 'plateNumber brand model status')
         .populate('driverId', 'firstName lastName email')
         .exec();
@@ -546,8 +622,65 @@ export class ScheduledRouteService {
         throw new NotFoundException(`Route with ID ${id} not found`);
       }
 
+      console.log(`Route data saved successfully:`);
+      console.log(
+        `- Saved distance: ${updatedRoute.estimatedDistanceText} (${updatedRoute.estimatedDistance}m)`,
+      );
+      console.log(
+        `- Saved duration: ${updatedRoute.estimatedDurationText} (${updatedRoute.estimatedDuration}s)`,
+      );
+      console.log(`- Saved waypoints: ${updatedRoute.waypoints?.length || 0}`);
+      console.log(
+        `- Saved route steps: ${updatedRoute.routeSteps?.length || 0}`,
+      );
+      console.log(
+        `- Saved polyline: ${updatedRoute.routePolyline ? 'YES' : 'NO'}`,
+      );
+      console.log(
+        `- Saved decoded path: ${updatedRoute.decodedPath ? 'YES' : 'NO'}`,
+      );
+
+      // Log the raw saved data structure
+      console.log(`Raw saved data structure:`);
+      console.log(
+        `- updatedRoute.routePolyline type: ${typeof updatedRoute.routePolyline}`,
+      );
+      console.log(
+        `- updatedRoute.decodedPath type: ${typeof updatedRoute.decodedPath}, length: ${Array.isArray(updatedRoute.decodedPath) ? updatedRoute.decodedPath.length : 'NOT_ARRAY'}`,
+      );
+      console.log(
+        `- updatedRoute.routeSteps type: ${typeof updatedRoute.routeSteps}, length: ${Array.isArray(updatedRoute.routeSteps) ? updatedRoute.routeSteps.length : 'NOT_ARRAY'}`,
+      );
+      console.log(
+        `- updatedRoute.waypoints type: ${typeof updatedRoute.waypoints}, length: ${Array.isArray(updatedRoute.waypoints) ? updatedRoute.waypoints.length : 'NOT_ARRAY'}`,
+      );
+
+      // Verify the data was actually saved by querying it directly
+      console.log(`Verifying data was saved by direct query...`);
+      const verificationQuery = await this.scheduledRouteModel
+        .findById(id)
+        .lean();
+      if (verificationQuery) {
+        console.log(`Direct query verification:`);
+        console.log(
+          `- routePolyline: ${verificationQuery.routePolyline ? `YES (${verificationQuery.routePolyline.length} chars)` : 'NO'}`,
+        );
+        console.log(
+          `- decodedPath: ${verificationQuery.decodedPath ? `YES (${verificationQuery.decodedPath.length} points)` : 'NO'}`,
+        );
+        console.log(
+          `- routeSteps: ${verificationQuery.routeSteps ? `YES (${verificationQuery.routeSteps.length} steps)` : 'NO'}`,
+        );
+        console.log(
+          `- waypoints: ${verificationQuery.waypoints ? `YES (${verificationQuery.waypoints.length} waypoints)` : 'NO'}`,
+        );
+      } else {
+        console.log(`Direct query verification: Route not found!`);
+      }
+
       return updatedRoute;
     } catch (error) {
+      console.error(`Error in calculateAndUpdateRoute: ${error.message}`);
       if (
         error instanceof BadRequestException ||
         error instanceof NotFoundException

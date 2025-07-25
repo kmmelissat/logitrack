@@ -28,13 +28,17 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { PointType } from './entities/route-point.entity';
+import { ScheduledRouteService } from '../scheduled-route/scheduled-route.service';
 
 @ApiTags('route-points')
 @Controller('route-points')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class RoutePointController {
-  constructor(private readonly routePointService: RoutePointService) {}
+  constructor(
+    private readonly routePointService: RoutePointService,
+    private readonly scheduledRouteService: ScheduledRouteService,
+  ) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.LOGISTICA)
@@ -98,32 +102,103 @@ export class RoutePointController {
   @Get()
   @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
   @ApiOperation({
-    summary: 'Get all route points with filters',
+    summary: 'Get all route points',
     description:
-      'Retrieve route points with optional filtering by route, type, completion status',
+      'Retrieve all route points with optional filtering and save calculated route data to scheduled routes',
   })
   @ApiQuery({
     name: 'scheduledRouteId',
     required: false,
     description: 'Filter by scheduled route ID',
   })
-  @ApiQuery({
-    name: 'type',
-    required: false,
-    enum: PointType,
-    description: 'Filter by point type',
-  })
-  @ApiQuery({
-    name: 'isCompleted',
-    required: false,
-    description: 'Filter by completion status (true/false)',
-  })
   @ApiResponse({
     status: 200,
     description: 'Route points retrieved successfully',
   })
   async findAll(@Query() query: any) {
-    return this.routePointService.findAll(query);
+    console.log(`=== RoutePoints findAll called with query:`, query);
+
+    const routePoints = await this.routePointService.findAll(query);
+    console.log(`=== Found ${routePoints.length} route points`);
+
+    // If we have route points and they belong to a scheduled route, save the calculated data
+    if (routePoints && routePoints.length > 0) {
+      // Group route points by scheduledRouteId
+      const routePointsByRoute: { [key: string]: any[] } = routePoints.reduce(
+        (acc: { [key: string]: any[] }, point) => {
+          // Handle both populated and non-populated scheduledRouteId
+          let routeId;
+          if (
+            typeof point.scheduledRouteId === 'object' &&
+            point.scheduledRouteId?._id
+          ) {
+            // Populated object - extract the _id
+            routeId = point.scheduledRouteId._id.toString();
+            console.log(
+              `=== Extracted routeId from populated object: ${routeId}`,
+            );
+          } else if (typeof point.scheduledRouteId === 'string') {
+            // String ID
+            routeId = point.scheduledRouteId;
+            console.log(`=== Using string routeId: ${routeId}`);
+          } else if (point.scheduledRouteId) {
+            // ObjectId or other type
+            routeId = point.scheduledRouteId.toString();
+            console.log(`=== Converted routeId to string: ${routeId}`);
+          }
+
+          if (routeId) {
+            if (!acc[routeId]) {
+              acc[routeId] = [];
+            }
+            acc[routeId].push(point);
+          } else {
+            console.log(`=== No routeId found for point:`, point._id);
+          }
+          return acc;
+        },
+        {},
+      );
+
+      console.log(`=== Grouped routes:`, Object.keys(routePointsByRoute));
+
+      // Save calculated data for each route
+      for (const [routeId, points] of Object.entries(routePointsByRoute)) {
+        console.log(
+          `=== Processing route ${routeId} with ${points.length} points`,
+        );
+        if (points.length > 1) {
+          // Only calculate if we have multiple points
+          try {
+            console.log(`=== Saving calculated data for route: ${routeId} ===`);
+            const result =
+              await this.scheduledRouteService.calculateAndUpdateRoute(routeId);
+            console.log(
+              `=== Successfully saved data for route: ${routeId} ===`,
+            );
+            console.log(`=== Saved route name: ${result.name}`);
+            console.log(`=== Has polyline: ${!!result.routePolyline}`);
+            console.log(`=== Has decoded path: ${!!result.decodedPath}`);
+            console.log(`=== Has route steps: ${!!result.routeSteps}`);
+            console.log(`=== Has waypoints: ${!!result.waypoints}`);
+          } catch (error) {
+            console.error(
+              `=== Error saving data for route ${routeId}:`,
+              error.message,
+            );
+            console.error(`=== Error stack:`, error.stack);
+          }
+        } else {
+          console.log(
+            `=== Skipping route ${routeId} - only ${points.length} point(s)`,
+          );
+        }
+      }
+    } else {
+      console.log(`=== No route points found`);
+    }
+
+    return routePoints;
   }
 
   @Get('route/:scheduledRouteId')

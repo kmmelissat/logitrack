@@ -60,10 +60,49 @@ export class MapsService {
 
   private getApiKey(): string {
     const apiKey = this.configService.get<string>('googleMaps.apiKey');
+    this.logger.log(`Google Maps API Key loaded: ${apiKey ? 'YES' : 'NO'}`);
+    if (apiKey) {
+      this.logger.log(`API Key starts with: ${apiKey.substring(0, 10)}...`);
+    }
     if (!apiKey) {
       throw new Error('Google Maps API key is not configured');
     }
     return apiKey;
+  }
+
+  async testGoogleMapsAPI(): Promise<boolean> {
+    try {
+      this.logger.log('Testing Google Maps API...');
+
+      // Test with two known points (San Francisco to Los Angeles)
+      const response = await this.client.directions({
+        params: {
+          origin: 'San Francisco, CA',
+          destination: 'Los Angeles, CA',
+          mode: TravelMode.driving,
+          key: this.getApiKey(),
+        },
+      });
+
+      this.logger.log(`Test API Response Status: ${response.data.status}`);
+
+      if (response.data.status === 'OK' && response.data.routes.length > 0) {
+        const route = response.data.routes[0];
+        const leg = route.legs[0];
+        this.logger.log(
+          `Test successful: ${leg.distance.text}, ${leg.duration.text}`,
+        );
+        return true;
+      } else {
+        this.logger.error(
+          `Test failed: ${response.data.status} - ${response.data.error_message || 'No error message'}`,
+        );
+        return false;
+      }
+    } catch (error) {
+      this.logger.error(`Test API error: ${error.message}`);
+      return false;
+    }
   }
 
   async calculateDistance(
@@ -160,6 +199,10 @@ export class MapsService {
     waypoints: string[];
   }> {
     try {
+      this.logger.log(
+        `Calling Google Maps API with origin: ${origin}, destination: ${destination}, waypoints: [${waypoints?.join(' | ') || 'none'}]`,
+      );
+
       const response = await this.client.directions({
         params: {
           origin,
@@ -171,44 +214,140 @@ export class MapsService {
         },
       });
 
-      if (response.data.status !== 'OK' || !response.data.routes.length) {
-        throw new Error(`No route found: ${response.data.status}`);
+      this.logger.log(
+        `Google Maps API Response Status: ${response.data.status}`,
+      );
+      this.logger.log(
+        `Google Maps API Response Routes Count: ${response.data.routes?.length || 0}`,
+      );
+
+      if (response.data.status !== 'OK') {
+        this.logger.error(
+          `Google Maps API Error: ${response.data.status} - ${response.data.error_message || 'No error message'}`,
+        );
+        throw new Error(
+          `Google Maps API Error: ${response.data.status} - ${response.data.error_message || 'No error message'}`,
+        );
+      }
+
+      if (!response.data.routes || response.data.routes.length === 0) {
+        this.logger.error('Google Maps API returned no routes');
+        throw new Error('Google Maps API returned no routes');
       }
 
       const route = response.data.routes[0];
-      const leg = route.legs[0];
+      this.logger.log(`Route has ${route.legs?.length || 0} legs`);
+      this.logger.log(
+        `Route polyline exists: ${!!route.overview_polyline?.points}`,
+      );
+      this.logger.log(
+        `Route polyline length: ${route.overview_polyline?.points?.length || 0}`,
+      );
+
+      if (!route.overview_polyline?.points) {
+        this.logger.error('Route has no polyline data');
+        throw new Error('Route has no polyline data');
+      }
+
       const polyline = route.overview_polyline.points;
 
       // Decode the polyline to get all coordinates
       const decodedPath = decodePolyline(polyline);
+      this.logger.log(`Decoded polyline has ${decodedPath.length} points`);
 
-      // Extract route steps (turn-by-turn directions)
-      const routeSteps = leg.steps.map((step) => ({
-        instruction: step.html_instructions || 'Continue',
-        distance: step.distance.text,
-        duration: step.duration.text,
-        startLocation: {
-          lat: step.start_location.lat,
-          lng: step.start_location.lng,
-        },
-        endLocation: {
-          lat: step.end_location.lat,
-          lng: step.end_location.lng,
-        },
-      }));
+      // Calculate total distance and duration across all legs
+      let totalDistance = 0;
+      let totalDuration = 0;
+      const allRouteSteps: Array<{
+        instruction: string;
+        distance: string;
+        duration: string;
+        startLocation: { lat: number; lng: number };
+        endLocation: { lat: number; lng: number };
+      }> = [];
+
+      // Process all legs (segments between waypoints)
+      if (!route.legs || route.legs.length === 0) {
+        this.logger.error('Route has no legs data');
+        throw new Error('Route has no legs data');
+      }
+
+      route.legs.forEach((leg, legIndex) => {
+        this.logger.log(
+          `Processing leg ${legIndex + 1}: ${leg.distance?.text || 'N/A'}, ${leg.duration?.text || 'N/A'}`,
+        );
+
+        if (!leg.distance || !leg.duration) {
+          this.logger.error(
+            `Leg ${legIndex + 1} is missing distance or duration data`,
+          );
+          throw new Error(
+            `Leg ${legIndex + 1} is missing distance or duration data`,
+          );
+        }
+
+        totalDistance += leg.distance.value;
+        totalDuration += leg.duration.value;
+
+        // Add all steps from this leg
+        if (leg.steps && leg.steps.length > 0) {
+          leg.steps.forEach((step) => {
+            allRouteSteps.push({
+              instruction: step.html_instructions || 'Continue',
+              distance: step.distance.text,
+              duration: step.duration.text,
+              startLocation: {
+                lat: step.start_location.lat,
+                lng: step.start_location.lng,
+              },
+              endLocation: {
+                lat: step.end_location.lat,
+                lng: step.end_location.lng,
+              },
+            });
+          });
+        } else {
+          this.logger.warn(`Leg ${legIndex + 1} has no steps`);
+        }
+      });
+
+      // Format distance and duration text
+      const formatDistance = (meters: number): string => {
+        if (meters >= 1000) {
+          return `${(meters / 1000).toFixed(1)} km`;
+        }
+        return `${meters} m`;
+      };
+
+      const formatDuration = (seconds: number): string => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+
+        if (hours > 0) {
+          return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} min${minutes > 1 ? 's' : ''}`;
+        }
+        return `${minutes} min${minutes > 1 ? 's' : ''}`;
+      };
+
+      this.logger.log(
+        `Total route: ${formatDistance(totalDistance)}, ${formatDuration(totalDuration)}`,
+      );
+      this.logger.log(`Total route steps: ${allRouteSteps.length}`);
+      this.logger.log(`Total waypoints: ${waypoints?.length || 0}`);
 
       return {
         routePolyline: polyline,
         decodedPath,
-        estimatedDistance: leg.distance.value, // in meters
-        estimatedDistanceText: leg.distance.text,
-        estimatedDuration: leg.duration.value, // in seconds
-        estimatedDurationText: leg.duration.text,
-        routeSteps,
+        estimatedDistance: totalDistance, // in meters
+        estimatedDistanceText: formatDistance(totalDistance),
+        estimatedDuration: totalDuration, // in seconds
+        estimatedDurationText: formatDuration(totalDuration),
+        routeSteps: allRouteSteps,
         waypoints: waypoints || [],
       };
     } catch (error) {
       this.logger.error(`Error calculating complete route: ${error.message}`);
+      this.logger.error(`Error stack: ${error.stack}`);
       throw error;
     }
   }
@@ -240,6 +379,18 @@ export class MapsService {
       throw new Error('Route must have at least 2 points');
     }
 
+    // Log the original points for debugging
+    this.logger.log(
+      `Original route points: ${JSON.stringify(
+        routePoints.map((p) => ({
+          lat: p.latitude,
+          lng: p.longitude,
+          type: p.type,
+          sequenceOrder: p.sequenceOrder,
+        })),
+      )}`,
+    );
+
     // Sort points by sequenceOrder if available, otherwise by their order in the array
     const sortedPoints = [...routePoints].sort((a, b) => {
       if (a.sequenceOrder !== undefined && b.sequenceOrder !== undefined) {
@@ -247,6 +398,46 @@ export class MapsService {
       }
       return 0;
     });
+
+    // Log sorted points for debugging
+    this.logger.log(
+      `Sorted route points: ${JSON.stringify(
+        sortedPoints.map((p) => ({
+          lat: p.latitude,
+          lng: p.longitude,
+          type: p.type,
+          sequenceOrder: p.sequenceOrder,
+        })),
+      )}`,
+    );
+
+    // Check if all points have sequenceOrder
+    const hasSequenceOrder = sortedPoints.every(
+      (p) => p.sequenceOrder !== undefined,
+    );
+
+    if (hasSequenceOrder) {
+      // Validate unique sequenceOrder (but don't require consecutive)
+      const sequenceOrders = sortedPoints.map((p) => p.sequenceOrder);
+      const uniqueOrders = new Set(sequenceOrders);
+
+      if (uniqueOrders.size !== sortedPoints.length) {
+        this.logger.warn(
+          `Duplicate sequenceOrder values found: [${sequenceOrders.join(', ')}]. Using sorted order.`,
+        );
+        // If there are duplicates, sort by the order they appear in the original array
+        const originalIndices = new Map();
+        routePoints.forEach((point, index) => {
+          originalIndices.set(`${point.latitude},${point.longitude}`, index);
+        });
+
+        sortedPoints.sort((a, b) => {
+          const indexA = originalIndices.get(`${a.latitude},${a.longitude}`);
+          const indexB = originalIndices.get(`${b.latitude},${b.longitude}`);
+          return indexA - indexB;
+        });
+      }
+    }
 
     // Use the first point as origin and last point as destination
     const origin = sortedPoints[0];
@@ -256,6 +447,11 @@ export class MapsService {
     const waypoints = sortedPoints
       .slice(1, -1) // Remove first and last points
       .map((p) => `${p.latitude},${p.longitude}`);
+
+    // Debug log
+    this.logger.log(
+      `Google Maps Route Calculation: origin=${origin.latitude},${origin.longitude} destination=${destination.latitude},${destination.longitude} waypoints=[${waypoints.join(' | ')}] (total points: ${sortedPoints.length})`,
+    );
 
     const originStr = `${origin.latitude},${origin.longitude}`;
     const destinationStr = `${destination.latitude},${destination.longitude}`;
