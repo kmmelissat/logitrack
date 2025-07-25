@@ -32,7 +32,7 @@ import {
 export class MaintenanceController {
   constructor(private readonly maintenanceService: MaintenanceService) {}
 
-  @Get('/vehicles/:id/maintenance')
+  @Get('/vehicles/:vehicleId/maintenance')
   @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
   @ApiOperation({ summary: 'View maintenance history by vehicle' })
   @ApiResponse({
@@ -45,7 +45,7 @@ export class MaintenanceController {
     return this.maintenanceService.findByVehicle(id);
   }
 
-  @Post('/vehicles/:id/maintenance')
+  @Post('/vehicles/:vehicleId/maintenance')
   @Roles(Role.ADMIN, Role.LOGISTICA)
   @ApiOperation({ summary: 'Register new maintenance for a vehicle' })
   @ApiResponse({
