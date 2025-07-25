@@ -166,59 +166,6 @@ export class VehicleController {
     return this.vehicleService.assignVehicle(id, assignmentDto);
   }
 
-  @Get(':id/available')
-  @Roles(Role.ADMIN, Role.LOGISTICA)
-  @ApiOperation({ summary: 'Check if vehicle is available for assignment' })
-  @ApiResponse({
-    status: 200,
-    description: 'Vehicle availability status',
-    schema: {
-      type: 'object',
-      properties: {
-        available: { type: 'boolean' },
-        message: { type: 'string' },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Vehicle not found' })
-  async checkVehicleAvailability(@Param('id') id: string) {
-    const available = await this.vehicleService.isVehicleAvailable(id);
-    return {
-      available,
-      message: available
-        ? 'Vehicle is available for assignment'
-        : 'Vehicle is not available for assignment',
-    };
-  }
-
-  @Get('driver/:driverId/available')
-  @Roles(Role.ADMIN, Role.LOGISTICA)
-  @ApiOperation({ summary: 'Check if driver is available for assignment' })
-  @ApiResponse({
-    status: 200,
-    description: 'Driver availability status',
-    schema: {
-      type: 'object',
-      properties: {
-        available: { type: 'boolean' },
-        message: { type: 'string' },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async checkDriverAvailability(@Param('driverId') driverId: string) {
-    const available = await this.vehicleService.isDriverAvailable(driverId);
-    return {
-      available,
-      message: available
-        ? 'Driver is available for assignment'
-        : 'Driver is already assigned to a vehicle',
-    };
-  }
-
   @Patch(':id/unassign')
   @Roles(Role.ADMIN, Role.LOGISTICA)
   @ApiOperation({ summary: 'Unassign vehicle from driver' })
@@ -262,5 +209,25 @@ export class VehicleController {
   @ApiResponse({ status: 404, description: 'Vehicle not found' })
   remove(@Param('id') id: string) {
     return this.vehicleService.remove(id);
+  }
+
+  @Get('summary')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({ summary: 'Get vehicle summary (counts by status)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Summary of vehicles by status',
+    schema: {
+      type: 'object',
+      properties: {
+        total: { type: 'number' },
+        activos: { type: 'number' },
+        taller: { type: 'number' },
+        descontinuados: { type: 'number' },
+      },
+    },
+  })
+  async getSummary() {
+    return this.vehicleService.getSummary();
   }
 }
