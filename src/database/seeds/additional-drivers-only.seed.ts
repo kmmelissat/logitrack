@@ -1,15 +1,12 @@
 import * as mongoose from 'mongoose';
 import * as dotenv from 'dotenv';
-import { UserSeeder } from './user.seed';
-import { VehicleSeeder } from './vehicle.seed';
-import { VehicleAssignmentSeeder } from './vehicle-assignment.seed';
 import { AdditionalDriversSeeder } from './additional-drivers.seed';
 
 // Load environment variables
 dotenv.config();
 
-async function runSeeds() {
-  console.log('🚀 Starting database seeding...');
+async function runAdditionalDriversSeed() {
+  console.log('👥 Starting additional drivers seeding...');
 
   // Create MongoDB connection
   const mongoUri =
@@ -25,25 +22,13 @@ async function runSeeds() {
     await mongoose.connect(mongoUri);
     console.log('✅ Database connection established');
 
-    // Run user seeder
-    const userSeeder = new UserSeeder();
-    await userSeeder.run();
-
     // Run additional drivers seeder
     const additionalDriversSeeder = new AdditionalDriversSeeder();
     await additionalDriversSeeder.run();
 
-    // Run vehicle seeder
-    const vehicleSeeder = new VehicleSeeder();
-    await vehicleSeeder.run();
-
-    // Run vehicle assignment seeder
-    const vehicleAssignmentSeeder = new VehicleAssignmentSeeder();
-    await vehicleAssignmentSeeder.run();
-
-    console.log('🎉 All seeds completed successfully!');
+    console.log('🎉 Additional drivers seeding completed successfully!');
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
+    console.error('❌ Additional drivers seeding failed:', error);
     process.exit(1);
   } finally {
     // Close the connection
@@ -55,7 +40,7 @@ async function runSeeds() {
 
 // Run the seeding if this file is executed directly
 if (require.main === module) {
-  runSeeds();
+  runAdditionalDriversSeed();
 }
 
-export { runSeeds };
+export { runAdditionalDriversSeed };
