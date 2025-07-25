@@ -7,19 +7,32 @@ import {
 } from './entities/maintenance.entity';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
+import { Vehicle, VehicleDocument } from '../vehicle/entities/vehicle.entity';
 
 @Injectable()
 export class MaintenanceService {
   constructor(
     @InjectModel(Maintenance.name)
     private maintenanceModel: Model<MaintenanceDocument>,
+    @InjectModel(Vehicle.name)
+    private vehicleModel: Model<VehicleDocument>,
   ) {}
 
   async create(
     createMaintenanceDto: CreateMaintenanceDto,
-  ): Promise<Maintenance> {
+  ): Promise<{ maintenance: Maintenance; vehicle: any }> {
     const maintenance = new this.maintenanceModel(createMaintenanceDto);
-    return maintenance.save();
+    const savedMaintenance = await maintenance.save();
+
+    // Get vehicle information
+    const vehicle = await this.vehicleModel
+      .findById(createMaintenanceDto.vehicleId)
+      .exec();
+
+    return {
+      maintenance: savedMaintenance,
+      vehicle,
+    };
   }
 
   async findAll(): Promise<Maintenance[]> {
@@ -60,11 +73,21 @@ export class MaintenanceService {
     }
   }
 
-  async findByVehicle(vehicleId: string): Promise<Maintenance[]> {
-    return this.maintenanceModel
+  async findByVehicle(
+    vehicleId: string,
+  ): Promise<{ maintenance: Maintenance[]; vehicle: any }> {
+    const maintenance = await this.maintenanceModel
       .find({ vehicleId: new Types.ObjectId(vehicleId) })
       .populate('vehicleId')
       .exec();
+
+    // Get vehicle information directly from vehicle collection
+    const vehicle = await this.vehicleModel.findById(vehicleId).exec();
+
+    return {
+      maintenance,
+      vehicle,
+    };
   }
 
   async findByType(type: string): Promise<Maintenance[]> {

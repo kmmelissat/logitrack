@@ -1,7 +1,16 @@
 import { PartialType } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum, IsDateString, IsNumber, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsDateString,
+  IsNumber,
+  Min,
+  IsMongoId,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { RouteStatus } from '../entities/scheduled-route.entity';
+import { Types } from 'mongoose';
 
 export class UpdateScheduledRouteDto {
   @ApiProperty({
@@ -80,7 +89,7 @@ export class UpdateScheduledRouteDto {
 
   @ApiProperty({
     description: 'Costo estimado en USD',
-    example: 1200.00,
+    example: 1200.0,
     required: false,
   })
   @IsOptional()
@@ -96,4 +105,22 @@ export class UpdateScheduledRouteDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiProperty({
+    description: 'ID del vehículo asignado',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+  })
+  @IsOptional()
+  @IsMongoId()
+  vehicleId?: Types.ObjectId;
+
+  @ApiProperty({
+    description: 'ID del conductor asignado',
+    example: '507f1f77bcf86cd799439012',
+    required: false,
+  })
+  @IsOptional()
+  @IsMongoId()
+  driverId?: Types.ObjectId;
 }

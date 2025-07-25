@@ -75,6 +75,49 @@ export class ScheduledRouteController {
     }
   }
 
+  @Get('available-vehicles')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({
+    summary: 'Obtener vehículos disponibles con conductores asignados',
+    description:
+      'Obtiene todos los vehículos activos que tienen conductores asignados',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de vehículos disponibles obtenida exitosamente',
+  })
+  async getAvailableVehicles() {
+    try {
+      return await this.scheduledRouteService.getAvailableVehiclesWithDrivers();
+    } catch (error) {
+      throw new HttpException(
+        'Error interno del servidor',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('available-drivers')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({
+    summary: 'Obtener conductores disponibles con vehículos asignados',
+    description: 'Obtiene todos los conductores que tienen vehículos asignados',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de conductores disponibles obtenida exitosamente',
+  })
+  async getAvailableDrivers() {
+    try {
+      return await this.scheduledRouteService.getAvailableDriversWithVehicles();
+    } catch (error) {
+      throw new HttpException(
+        'Error interno del servidor',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Post()
   @Roles(Role.ADMIN, Role.LOGISTICA)
   @ApiOperation({
