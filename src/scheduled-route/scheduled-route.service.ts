@@ -726,4 +726,20 @@ export class ScheduledRouteService {
 
     return availableVehicles;
   }
+
+  async markRouteAsCompleted(id: string): Promise<ScheduledRouteDocument> {
+    const route = await this.scheduledRouteModel.findById(id);
+    if (!route) {
+      throw new NotFoundException(`Route with ID ${id} not found`);
+    }
+
+    if (route.status === RouteStatus.COMPLETADA) {
+      throw new BadRequestException('Route is already completed');
+    }
+
+    route.status = RouteStatus.COMPLETADA;
+    route.actualEndTime = new Date();
+
+    return await route.save();
+  }
 }

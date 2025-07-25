@@ -274,12 +274,46 @@ export class GpsEventService {
       .exec();
   }
 
-  async findByRoute(scheduledRouteId: string): Promise<GpsEvent[]> {
-    return this.gpsEventModel
+  async findByRoute(scheduledRouteId: string): Promise<any> {
+    const events = await this.gpsEventModel
       .find({ scheduledRouteId })
       .populate('vehicleId', 'plateNumber brand model')
       .sort({ timestamp: -1 })
       .exec();
+
+    // Get route information
+    const route = await this.scheduledRouteModel.findById(scheduledRouteId);
+
+    if (events.length === 0) {
+      return {
+        message: 'No GPS events found for this route',
+        routeId: scheduledRouteId,
+        routeStatus: route?.status || 'unknown',
+        routeName: route?.name || 'Unknown',
+        events: [],
+        count: 0,
+        note:
+          route?.status === 'planificada'
+            ? 'Route is still planned. Start GPS monitoring to track the route.'
+            : route?.status === 'en_progreso'
+              ? 'Route is currently active and being monitored.'
+              : 'No GPS tracking data available for this route.',
+      };
+    }
+
+    return {
+      routeId: scheduledRouteId,
+      routeStatus: route?.status || 'unknown',
+      routeName: route?.name || 'Unknown',
+      events,
+      count: events.length,
+      totalDistance: this.calculateTotalDistance(events),
+      totalDuration: this.calculateTotalDuration(events),
+      deviations: events.filter(
+        (e) => e.eventType === EventType.ROUTE_DEVIATION,
+      ).length,
+      alerts: events.filter((e) => e.isAlert).length,
+    };
   }
 
   async findDeviations(
@@ -357,7 +391,9 @@ export class GpsEventService {
       }
 
       // Calculate speed statistics
-      const speeds = events.filter((e) => e.speed !== undefined).map((e) => e.speed!);
+      const speeds = events
+        .filter((e) => e.speed !== undefined)
+        .map((e) => e.speed!);
       if (speeds.length > 0) {
         maxSpeed = Math.max(...speeds);
         avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
@@ -374,5 +410,27 @@ export class GpsEventService {
       deviationPercentage:
         totalEvents > 0 ? (deviations / totalEvents) * 100 : 0,
     };
+  }
+
+  private calculateTotalDistance(events: GpsEvent[]): number {
+    let totalDistance = 0;
+    for (let i = 1; i < events.length; i++) {
+      const distance = calculateHaversineDistance(
+        {
+          latitude: events[i - 1].latitude,
+          longitude: events[i - 1].longitude,
+        },
+        { latitude: events[i].latitude, longitude: events[i].longitude },
+      );
+      totalDistance += distance;
+    }
+    return Math.round(totalDistance);
+  }
+
+  private calculateTotalDuration(events: GpsEvent[]): number {
+    if (events.length < 2) return 0;
+    const startTime = events[events.length - 1].timestamp;
+    const endTime = events[0].timestamp;
+    return Math.round((endTime.getTime() - startTime.getTime()) / 1000); // seconds
   }
 }

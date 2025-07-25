@@ -120,7 +120,8 @@ export class GpsMonitoringController {
   })
   @ApiResponse({ status: 404, description: 'Driver simulation not found' })
   async stopSimulation(@Param('driverId') driverId: string) {
-    const stopped = this.gpsSimulatorService.stopDriverSimulation(driverId);
+    const stopped =
+      await this.gpsSimulatorService.stopDriverSimulation(driverId);
 
     if (!stopped) {
       throw new Error('Driver simulation not found');

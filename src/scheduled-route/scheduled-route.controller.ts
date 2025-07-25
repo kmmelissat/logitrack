@@ -336,4 +336,43 @@ export class ScheduledRouteController {
       );
     }
   }
+
+  @Patch(':id/complete')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({
+    summary: 'Mark route as completed',
+    description: 'Manually mark a route as completed',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the scheduled route to complete',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Route marked as completed successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Route not found' })
+  @ApiResponse({ status: 400, description: 'Route is already completed' })
+  async markAsCompleted(
+    @Param('id') id: string,
+  ): Promise<ScheduledRouteResponseDto> {
+    try {
+      const completedRoute =
+        await this.scheduledRouteService.markRouteAsCompleted(id);
+      return await this.scheduledRouteService.formatRouteResponse(
+        completedRoute,
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Error interno del servidor',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

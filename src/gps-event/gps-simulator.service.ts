@@ -1,4 +1,4 @@
-  import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { GpsEvent, GpsEventDocument } from './entities/gps-event.entity';
@@ -29,6 +29,13 @@ export interface SimulatedDriver {
   progress: number; // 0-100 percentage of route completion
   deviations: number;
   alerts: any[];
+  distanceFromRoute: number;
+  nextCheckpoint: {
+    name: string;
+    distance: number;
+    eta: number;
+  };
+  estimatedArrival: Date;
 }
 
 export interface RouteMonitoringData {
@@ -112,10 +119,26 @@ export class GpsSimulatorService {
         progress: 0,
         deviations: 0,
         alerts: [],
+        distanceFromRoute: 0,
+        nextCheckpoint: { name: '', distance: 0, eta: 0 },
+        estimatedArrival: new Date(),
       };
 
       this.activeDrivers.set(driverId, simulatedDriver);
       this.logger.log(`Started GPS simulation for driver ${driverId}`);
+
+      // Update route status to active
+      try {
+        await this.scheduledRouteModel.findByIdAndUpdate(scheduledRouteId, {
+          status: 'en_progreso',
+          actualStartTime: new Date(),
+        });
+        this.logger.log(`Route ${scheduledRouteId} marked as active`);
+      } catch (error) {
+        this.logger.error(
+          `Error updating route status to active: ${error.message}`,
+        );
+      }
 
       // Start simulation if not already running
       if (!this.simulationInterval) {
@@ -132,12 +155,35 @@ export class GpsSimulatorService {
   /**
    * Stop GPS simulation for a driver
    */
-  stopDriverSimulation(driverId: string): boolean {
+  async stopDriverSimulation(driverId: string): Promise<boolean> {
     const driver = this.activeDrivers.get(driverId);
     if (driver) {
       driver.isActive = false;
       this.activeDrivers.delete(driverId);
       this.logger.log(`Stopped GPS simulation for driver ${driverId}`);
+
+      // Update route status back to planned if not completed
+      try {
+        const route = await this.scheduledRouteModel.findById(
+          driver.scheduledRouteId,
+        );
+        if (route && route.status === 'en_progreso' && driver.progress < 100) {
+          await this.scheduledRouteModel.findByIdAndUpdate(
+            driver.scheduledRouteId,
+            {
+              status: 'planificada',
+            },
+          );
+          this.logger.log(
+            `Route ${driver.scheduledRouteId} marked back as planned (simulation stopped)`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error updating route status when stopping simulation: ${error.message}`,
+        );
+      }
+
       return true;
     }
     return false;
@@ -177,14 +223,13 @@ export class GpsSimulatorService {
     const isOnRoute = distanceFromRoute <= 0.1; // 100 meters
 
     // Find next checkpoint
-    const nextCheckpoint = this.findNextCheckpoint(
-      driver.currentPosition,
-      route.decodedPath,
-      progress,
-    );
+    const nextCheckpoint = this.findNextCheckpoint(driver, route.decodedPath);
 
     // Calculate estimated arrival
-    const estimatedArrival = this.calculateEstimatedArrival(driver, route);
+    const estimatedArrival = this.calculateEstimatedArrival(
+      driver,
+      route.decodedPath,
+    );
 
     return {
       driverId: driver.driverId,
@@ -223,68 +268,115 @@ export class GpsSimulatorService {
    */
   private async simulateDriverMovement(driver: SimulatedDriver): Promise<void> {
     try {
+      this.logger.log(`Simulating movement for driver ${driver.driverId}`);
+
       const route = await this.scheduledRouteModel.findById(
         driver.scheduledRouteId,
       );
-      if (!route || !route.decodedPath) {
+      if (!route || !route.decodedPath || route.decodedPath.length === 0) {
+        this.logger.error(
+          `Route ${driver.scheduledRouteId} not found or has no decodedPath`,
+        );
+        this.logger.error(`Route exists: ${!!route}`);
+        this.logger.error(`Has decodedPath: ${!!route?.decodedPath}`);
+        this.logger.error(
+          `DecodedPath length: ${route?.decodedPath?.length || 0}`,
+        );
         return;
       }
 
-      const now = new Date();
-      const timeDiff = (now.getTime() - driver.lastUpdate.getTime()) / 1000; // seconds
+      this.logger.log(
+        `Route found with ${route.decodedPath.length} path points`,
+      );
+      this.logger.log(`Driver progress: ${driver.progress}%`);
+      this.logger.log(
+        `Current position: ${driver.currentPosition.lat}, ${driver.currentPosition.lng}`,
+      );
 
-      // Calculate distance traveled
-      const distanceTraveled = (driver.currentSpeed * timeDiff) / 3600; // km
-
-      // Move driver along the route
-      const newPosition = this.moveAlongRoute(
+      // Calculate progress along the route
+      const progress = this.calculateRouteProgress(
         driver.currentPosition,
         route.decodedPath,
-        distanceTraveled,
-        driver.progress,
       );
+      driver.progress = progress;
 
-      // Update driver position
-      driver.currentPosition = newPosition;
-      driver.lastUpdate = now;
-      driver.progress = this.calculateRouteProgress(
-        newPosition,
+      // Move driver along the route
+      const newPosition = this.moveAlongRoute(driver, route.decodedPath);
+      if (newPosition) {
+        driver.currentPosition = newPosition;
+        this.logger.log(
+          `Driver moved to: ${newPosition.lat}, ${newPosition.lng}`,
+        );
+      }
+
+      // Calculate distance from route
+      const distanceFromRoute = this.calculateDistanceFromRoute(
+        driver.currentPosition,
         route.decodedPath,
       );
+      driver.distanceFromRoute = distanceFromRoute;
 
       // Check for route deviation
-      const distanceFromRoute = this.calculateDistanceFromRoute(
-        newPosition,
-        route.decodedPath,
-      );
       if (distanceFromRoute > 0.1) {
-        // 100 meters deviation
+        // 100 meters deviation threshold
         driver.deviations++;
-        driver.alerts.push({
-          type: 'ROUTE_DEVIATION',
-          severity: 'MEDIUM',
-          message: `Driver deviated ${(distanceFromRoute * 1000).toFixed(0)}m from route`,
-          timestamp: now,
-        });
-
-        // Create GPS event for deviation
+        this.logger.warn(`Route deviation detected: ${distanceFromRoute} km`);
         await this.createGpsEvent(driver, EventType.ROUTE_DEVIATION, {
-          deviation: distanceFromRoute,
-          severity: AlertSeverity.MEDIUM,
+          distanceFromRoute,
+          expectedPosition: this.findNearestPointOnRoute(
+            driver.currentPosition,
+            route.decodedPath,
+          ),
         });
       }
 
-      // Create regular GPS event
-      await this.createGpsEvent(driver, EventType.LOCATION);
+      // Update speed (simulate realistic speed variations)
+      const speedVariation = (Math.random() - 0.5) * 20; // ±10 km/h variation
+      driver.currentSpeed = Math.max(30, Math.min(80, 60 + speedVariation));
+
+      // Find next checkpoint
+      const nextCheckpoint = this.findNextCheckpoint(driver, route.decodedPath);
+      driver.nextCheckpoint = nextCheckpoint;
+
+      // Calculate estimated arrival
+      const estimatedArrival = this.calculateEstimatedArrival(
+        driver,
+        route.decodedPath,
+      );
+      driver.estimatedArrival = estimatedArrival;
+
+      // Create regular location event
+      await this.createGpsEvent(driver, EventType.LOCATION, {
+        speed: driver.currentSpeed,
+        progress: driver.progress,
+        distanceFromRoute,
+        nextCheckpoint,
+        estimatedArrival,
+      });
 
       // Check if route is completed
       if (driver.progress >= 100) {
         driver.isActive = false;
         this.activeDrivers.delete(driver.driverId);
         this.logger.log(`Driver ${driver.driverId} completed route`);
+        // Update route status to completed
+        try {
+          await this.scheduledRouteModel.findByIdAndUpdate(
+            driver.scheduledRouteId,
+            {
+              status: 'completada',
+              actualEndTime: new Date(),
+            },
+          );
+          this.logger.log(
+            `Route ${driver.scheduledRouteId} marked as completed`,
+          );
+        } catch (error) {
+          this.logger.error(`Error updating route status: ${error.message}`);
+        }
       }
     } catch (error) {
-      this.logger.error(`Error simulating driver movement: ${error.message}`);
+      this.logger.error(`Error in simulateDriverMovement: ${error.message}`);
     }
   }
 
@@ -387,16 +479,14 @@ export class GpsSimulatorService {
    * Move driver along the route
    */
   private moveAlongRoute(
-    currentPosition: { lat: number; lng: number },
+    driver: SimulatedDriver,
     routePath: any[],
-    distance: number,
-    currentProgress: number,
-  ): { lat: number; lng: number } {
+  ): { lat: number; lng: number } | null {
     const currentIndex = Math.floor(
-      (currentProgress / 100) * (routePath.length - 1),
+      (driver.progress / 100) * (routePath.length - 1),
     );
     const targetIndex = Math.min(
-      currentIndex + Math.floor(distance * 100),
+      currentIndex + 1, // Move one step at a time
       routePath.length - 1,
     );
 
@@ -410,15 +500,17 @@ export class GpsSimulatorService {
    * Find next checkpoint
    */
   private findNextCheckpoint(
-    position: { lat: number; lng: number },
+    driver: SimulatedDriver,
     routePath: any[],
-    progress: number,
   ): { name: string; distance: number; eta: number } {
-    const currentIndex = Math.floor((progress / 100) * routePath.length);
-    const nextIndex = Math.min(currentIndex + 10, routePath.length - 1);
+    const currentIndex = Math.floor((driver.progress / 100) * routePath.length);
+    const nextIndex = Math.min(currentIndex + 1, routePath.length - 1);
 
     const distance = calculateHaversineDistance(
-      { latitude: position.lat, longitude: position.lng },
+      {
+        latitude: driver.currentPosition.lat,
+        longitude: driver.currentPosition.lng,
+      },
       {
         latitude: routePath[nextIndex].lat,
         longitude: routePath[nextIndex].lng,
@@ -435,16 +527,42 @@ export class GpsSimulatorService {
   /**
    * Calculate estimated arrival time
    */
-  private calculateEstimatedArrival(driver: SimulatedDriver, route: any): Date {
+  private calculateEstimatedArrival(
+    driver: SimulatedDriver,
+    routePath: any[],
+  ): Date {
     const remainingProgress = 100 - driver.progress;
     const remainingDistance =
-      (route.estimatedDistance / 1000) * (remainingProgress / 100);
+      (routePath.length / 100) * (remainingProgress / 100); // Simplified distance calculation
     const remainingHours = remainingDistance / driver.currentSpeed;
 
-    const eta = new Date();
-    eta.setHours(eta.getHours() + remainingHours);
+    const estimatedArrival = new Date();
+    estimatedArrival.setHours(estimatedArrival.getHours() + remainingHours);
+    return estimatedArrival;
+  }
 
-    return eta;
+  /**
+   * Find the nearest point on the route to a given position
+   */
+  private findNearestPointOnRoute(
+    position: { lat: number; lng: number },
+    routePath: any[],
+  ): { lat: number; lng: number } {
+    let nearestPoint = routePath[0];
+    let minDistance = Infinity;
+
+    for (const point of routePath) {
+      const distance = calculateHaversineDistance(
+        { latitude: position.lat, longitude: position.lng },
+        { latitude: point.lat, longitude: point.lng },
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestPoint = point;
+      }
+    }
+
+    return { lat: nearestPoint.lat, lng: nearestPoint.lng };
   }
 
   /**
@@ -456,6 +574,10 @@ export class GpsSimulatorService {
     additionalData?: any,
   ): Promise<void> {
     try {
+      this.logger.log(
+        `Creating GPS event for driver ${driver.driverId}, type: ${eventType}`,
+      );
+
       const gpsEvent = new this.gpsEventModel({
         vehicleId: new Types.ObjectId(driver.vehicleId),
         scheduledRouteId: new Types.ObjectId(driver.scheduledRouteId),
@@ -476,9 +598,14 @@ export class GpsSimulatorService {
         isAlert: eventType !== EventType.LOCATION,
       });
 
-      await gpsEvent.save();
+      this.logger.log(`GPS event object created, attempting to save...`);
+      const savedEvent = await gpsEvent.save();
+      this.logger.log(
+        `GPS event saved successfully with ID: ${savedEvent._id}`,
+      );
     } catch (error) {
       this.logger.error(`Error creating GPS event: ${error.message}`);
+      this.logger.error(`Error stack: ${error.stack}`);
     }
   }
 
@@ -486,10 +613,17 @@ export class GpsSimulatorService {
    * Start the simulation loop
    */
   private startSimulation(): void {
+    this.logger.log('Starting GPS simulation loop...');
     this.simulationInterval = setInterval(async () => {
+      this.logger.log(
+        `Simulation tick - Active drivers: ${this.activeDrivers.size}`,
+      );
       for (const [driverId, driver] of this.activeDrivers) {
         if (driver.isActive) {
+          this.logger.log(`Processing driver: ${driverId}`);
           await this.simulateDriverMovement(driver);
+        } else {
+          this.logger.log(`Driver ${driverId} is not active, skipping`);
         }
       }
     }, 5000); // Update every 5 seconds
