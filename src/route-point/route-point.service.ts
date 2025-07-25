@@ -95,7 +95,19 @@ export class RoutePointService {
       }
 
       const routePoint = new this.routePointModel(createRoutePointDto);
-      return await routePoint.save();
+      const savedRoutePoint = await routePoint.save();
+
+      // Populate the saved route point with scheduledRouteId
+      const populatedRoutePoint = await this.routePointModel
+        .findById(savedRoutePoint._id)
+        .populate('scheduledRouteId', 'name origin destination')
+        .exec();
+
+      if (!populatedRoutePoint) {
+        throw new NotFoundException('Failed to retrieve created route point');
+      }
+
+      return populatedRoutePoint;
     } catch (error) {
       if (
         error instanceof NotFoundException ||
@@ -178,6 +190,12 @@ export class RoutePointService {
       const savedRoutePoints =
         await this.routePointModel.insertMany(routePoints);
 
+      // Populate the saved route points with scheduledRouteId
+      const populatedRoutePoints = await this.routePointModel
+        .find({ _id: { $in: savedRoutePoints.map((p) => p._id) } })
+        .populate('scheduledRouteId', 'name origin destination')
+        .exec();
+
       // Calculate Google Maps driving distance
       const routePointsForMaps = savedRoutePoints.map((point) => ({
         latitude: point.latitude,
@@ -189,7 +207,7 @@ export class RoutePointService {
         await this.mapsService.calculateRouteFromPoints(routePointsForMaps);
 
       return {
-        routePoints: savedRoutePoints,
+        routePoints: populatedRoutePoints,
         drivingDistance,
       };
     } catch (error) {
@@ -256,7 +274,13 @@ export class RoutePointService {
       const savedRoutePoints =
         await this.routePointModel.insertMany(routePoints);
 
-      return savedRoutePoints;
+      // Populate the saved route points with scheduledRouteId
+      const populatedRoutePoints = await this.routePointModel
+        .find({ _id: { $in: savedRoutePoints.map((p) => p._id) } })
+        .populate('scheduledRouteId', 'name origin destination')
+        .exec();
+
+      return populatedRoutePoints;
     } catch (error) {
       if (
         error instanceof NotFoundException ||
@@ -406,6 +430,7 @@ export class RoutePointService {
       // Recalculate driving distance for the entire route
       const allRoutePoints = await this.routePointModel
         .find({ scheduledRouteId: existingRoutePoint.scheduledRouteId })
+        .populate('scheduledRouteId', 'name origin destination')
         .sort({ sequenceOrder: 1 })
         .exec();
 
@@ -469,6 +494,7 @@ export class RoutePointService {
       // Get remaining route points and recalculate driving distance
       const remainingRoutePoints = await this.routePointModel
         .find({ scheduledRouteId: routeId })
+        .populate('scheduledRouteId', 'name origin destination')
         .sort({ sequenceOrder: 1 })
         .exec();
 
@@ -653,6 +679,7 @@ export class RoutePointService {
   async getRouteSummary(scheduledRouteId: string): Promise<any> {
     const points = await this.routePointModel
       .find({ scheduledRouteId })
+      .populate('scheduledRouteId', 'name origin destination')
       .sort({ sequenceOrder: 1 })
       .exec();
 

@@ -313,6 +313,7 @@ export class ScheduledRouteService {
     // Buscar todos los puntos de esta ruta ordenados por sequenceOrder
     const points = await this.routePointModel
       .find({ scheduledRouteId: new Types.ObjectId(id) })
+      .populate('scheduledRouteId', 'name origin destination')
       .sort({ sequenceOrder: 1 }) // Ordenar por sequence
       .exec();
 
@@ -447,6 +448,7 @@ export class ScheduledRouteService {
     if (!routeObj.points) {
       const points = await this.routePointModel
         .find({ scheduledRouteId: route._id })
+        .populate('scheduledRouteId', 'name origin destination')
         .sort({ sequenceOrder: 1 })
         .exec();
       routeObj.points = points;
@@ -499,6 +501,7 @@ export class ScheduledRouteService {
       const route = await this.findOneWithDetails(id);
       const routePoints = await this.routePointModel
         .find({ scheduledRouteId: id })
+        .populate('scheduledRouteId', 'name origin destination')
         .sort({ sequenceOrder: 1 })
         .exec();
 
