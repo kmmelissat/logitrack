@@ -39,61 +39,60 @@ export class RoutePointController {
   @Post()
   @Roles(Role.ADMIN, Role.LOGISTICA)
   @ApiOperation({
-    summary: 'Create a new route point',
+    summary: 'Create route points for a route (bulk)',
     description:
-      'Create a new point in a scheduled route with proper sequencing',
+      'Create multiple route points for a scheduled route and calculate Google Maps driving distance',
   })
   @ApiBody({
-    description: 'Route point data',
+    description: 'Array of route points data',
     examples: {
-      origin: {
-        summary: 'Origin point',
-        value: {
-          name: 'Terminal San Salvador',
-          description: 'Starting point of the route',
-          type: 'origen',
-          latitude: 13.6929,
-          longitude: -89.2182,
-          address: 'Terminal de Buses San Salvador',
-          sequenceOrder: 1,
-          scheduledRouteId: '507f1f77bcf86cd799439011',
-        },
-      },
-      waypoint: {
-        summary: 'Waypoint/Stop',
-        value: {
-          name: 'Santa Ana',
-          description: 'Intermediate stop for cargo pickup',
-          type: 'parada',
-          latitude: 13.9947,
-          longitude: -89.5597,
-          address: 'Centro de Santa Ana',
-          sequenceOrder: 2,
-          estimatedStayMinutes: 30,
-          radiusMeters: 500,
-          scheduledRouteId: '507f1f77bcf86cd799439011',
-        },
-      },
-      destination: {
-        summary: 'Destination point',
-        value: {
-          name: 'Terminal Tegucigalpa',
-          description: 'Final destination of the route',
-          type: 'destino',
-          latitude: 14.0723,
-          longitude: -87.1921,
-          address: 'Terminal de Buses Tegucigalpa',
-          sequenceOrder: 3,
-          scheduledRouteId: '507f1f77bcf86cd799439011',
-        },
+      completeRoute: {
+        summary: 'Complete route with origin, stops, and destination',
+        value: [
+          {
+            name: 'Terminal San Salvador',
+            description: 'Starting point of the route',
+            type: 'origen',
+            latitude: 13.6929,
+            longitude: -89.2182,
+            address: 'Terminal de Buses San Salvador',
+            sequenceOrder: 1,
+            scheduledRouteId: '507f1f77bcf86cd799439011',
+          },
+          {
+            name: 'Santa Ana',
+            description: 'Intermediate stop for cargo pickup',
+            type: 'parada',
+            latitude: 13.9947,
+            longitude: -89.5597,
+            address: 'Centro de Santa Ana',
+            sequenceOrder: 2,
+            estimatedStayMinutes: 30,
+            radiusMeters: 500,
+            scheduledRouteId: '507f1f77bcf86cd799439011',
+          },
+          {
+            name: 'Terminal Tegucigalpa',
+            description: 'Final destination of the route',
+            type: 'destino',
+            latitude: 14.0723,
+            longitude: -87.1921,
+            address: 'Terminal de Buses Tegucigalpa',
+            sequenceOrder: 3,
+            scheduledRouteId: '507f1f77bcf86cd799439011',
+          },
+        ],
       },
     },
   })
-  @ApiResponse({ status: 201, description: 'Route point created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Route points created successfully with driving distance',
+  })
   @ApiResponse({ status: 400, description: 'Invalid data or coordinates' })
   @ApiResponse({ status: 404, description: 'Scheduled route not found' })
-  async create(@Body() createRoutePointDto: CreateRoutePointDto) {
-    return this.routePointService.create(createRoutePointDto);
+  async create(@Body() createRoutePointDtos: CreateRoutePointDto[]) {
+    return this.routePointService.createWithDistance(createRoutePointDtos);
   }
 
   @Get()
@@ -251,14 +250,21 @@ export class RoutePointController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Route point updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Route point updated successfully with recalculated driving distance',
+  })
   @ApiResponse({ status: 400, description: 'Invalid data or coordinates' })
   @ApiResponse({ status: 404, description: 'Route point not found' })
   async update(
     @Param('id') id: string,
     @Body() updateRoutePointDto: UpdateRoutePointDto,
   ) {
-    return this.routePointService.update(id, updateRoutePointDto);
+    return this.routePointService.updateWithDistanceRecalculation(
+      id,
+      updateRoutePointDto,
+    );
   }
 
   @Patch(':id/complete')
@@ -295,7 +301,8 @@ export class RoutePointController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Route points reordered successfully',
+    description:
+      'Route points reordered successfully with recalculated driving distance',
   })
   @ApiResponse({
     status: 400,
@@ -306,7 +313,10 @@ export class RoutePointController {
     @Param('scheduledRouteId') scheduledRouteId: string,
     @Body() pointIds: string[],
   ) {
-    return this.routePointService.reorderPoints(scheduledRouteId, pointIds);
+    return this.routePointService.reorderPointsWithDistanceRecalculation(
+      scheduledRouteId,
+      pointIds,
+    );
   }
 
   @Delete(':id')
@@ -315,9 +325,13 @@ export class RoutePointController {
     summary: 'Delete route point',
     description: 'Delete a specific route point (Admin/Logistics only)',
   })
-  @ApiResponse({ status: 200, description: 'Route point deleted successfully' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Route point deleted successfully with recalculated driving distance',
+  })
   @ApiResponse({ status: 404, description: 'Route point not found' })
   async remove(@Param('id') id: string) {
-    return this.routePointService.remove(id);
+    return this.routePointService.removeWithDistanceRecalculation(id);
   }
 }

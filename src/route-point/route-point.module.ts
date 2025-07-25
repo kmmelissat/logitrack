@@ -7,6 +7,7 @@ import {
   ScheduledRoute,
   ScheduledRouteSchema,
 } from '../scheduled-route/entities/scheduled-route.entity';
+import { MapsModule } from '../maps/maps.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import {
       { name: RoutePoint.name, schema: RoutePointSchema },
       { name: ScheduledRoute.name, schema: ScheduledRouteSchema },
     ]),
+    MapsModule,
   ],
   controllers: [RoutePointController],
   providers: [RoutePointService],
