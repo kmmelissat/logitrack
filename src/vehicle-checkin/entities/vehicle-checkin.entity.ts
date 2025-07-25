@@ -11,6 +11,7 @@ export type VehicleCheckinDocument = VehicleCheckin & Document;
 @Schema({
   collection: 'vehicle_checkins',
   timestamps: true,
+  versionKey: false, // This excludes the __v field from responses
 })
 export class VehicleCheckin {
   _id: Types.ObjectId;

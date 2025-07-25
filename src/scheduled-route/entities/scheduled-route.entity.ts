@@ -13,6 +13,7 @@ export type ScheduledRouteDocument = ScheduledRoute & Document;
 @Schema({
   collection: 'scheduled_routes',
   timestamps: true,
+  versionKey: false, // This excludes the __v field from responses
 })
 export class ScheduledRoute {
   _id: Types.ObjectId;
@@ -65,6 +66,40 @@ export class ScheduledRoute {
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   driverId: Types.ObjectId;
+
+  // Google Maps Route Data
+  @Prop()
+  routePolyline?: string; // Encoded polyline from Google Maps
+
+  @Prop({ type: [Object] })
+  decodedPath?: Array<{
+    lat: number;
+    lng: number;
+  }>; // Decoded path coordinates
+
+  @Prop({ type: [String] })
+  waypoints?: string[]; // Intermediate stops
+
+  @Prop({ type: Number })
+  estimatedDuration?: number; // Duration in seconds
+
+  @Prop({ type: String })
+  estimatedDurationText?: string; // Human readable duration
+
+  @Prop({ type: String })
+  estimatedDistanceText?: string; // Human readable distance
+
+  @Prop({ type: [Object] })
+  routeSteps?: Array<{
+    instruction: string;
+    distance: string;
+    duration: string;
+    startLocation: { lat: number; lng: number };
+    endLocation: { lat: number; lng: number };
+  }>; // Turn-by-turn directions
+
+  @Prop({ type: Date })
+  lastRouteCalculation?: Date; // When route was last calculated
 
   // Timestamps are automatically handled by mongoose with timestamps: true
   createdAt: Date;

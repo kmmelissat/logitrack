@@ -13,6 +13,7 @@ export type RoutePointDocument = RoutePoint & Document;
 @Schema({
   collection: 'route_points',
   timestamps: true,
+  versionKey: false, // This excludes the __v field from responses
 })
 export class RoutePoint {
   _id: Types.ObjectId;

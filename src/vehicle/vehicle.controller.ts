@@ -156,13 +156,67 @@ export class VehicleController {
   @ApiResponse({ status: 404, description: 'Vehicle not found' })
   @ApiResponse({
     status: 400,
-    description: 'Vehicle not available for assignment',
+    description:
+      'Vehicle not available for assignment or driver already assigned',
   })
   assignVehicle(
     @Param('id') id: string,
     @Body() assignmentDto: VehicleAssignmentDto,
   ) {
     return this.vehicleService.assignVehicle(id, assignmentDto);
+  }
+
+  @Get(':id/available')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({ summary: 'Check if vehicle is available for assignment' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vehicle availability status',
+    schema: {
+      type: 'object',
+      properties: {
+        available: { type: 'boolean' },
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Vehicle not found' })
+  async checkVehicleAvailability(@Param('id') id: string) {
+    const available = await this.vehicleService.isVehicleAvailable(id);
+    return {
+      available,
+      message: available
+        ? 'Vehicle is available for assignment'
+        : 'Vehicle is not available for assignment',
+    };
+  }
+
+  @Get('driver/:driverId/available')
+  @Roles(Role.ADMIN, Role.LOGISTICA)
+  @ApiOperation({ summary: 'Check if driver is available for assignment' })
+  @ApiResponse({
+    status: 200,
+    description: 'Driver availability status',
+    schema: {
+      type: 'object',
+      properties: {
+        available: { type: 'boolean' },
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async checkDriverAvailability(@Param('driverId') driverId: string) {
+    const available = await this.vehicleService.isDriverAvailable(driverId);
+    return {
+      available,
+      message: available
+        ? 'Driver is available for assignment'
+        : 'Driver is already assigned to a vehicle',
+    };
   }
 
   @Patch(':id/unassign')

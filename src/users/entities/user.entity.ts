@@ -7,6 +7,7 @@ export type UserDocument = User & Document;
 @Schema({
   collection: 'users',
   timestamps: true,
+  versionKey: false, // This excludes the __v field from responses
 })
 export class User {
   _id: Types.ObjectId;
