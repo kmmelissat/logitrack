@@ -303,46 +303,7 @@ export class GpsMonitoringController {
     };
   }
 
-  @Get('test-demo')
-  @Roles(Role.ADMIN, Role.LOGISTICA)
-  @ApiOperation({
-    summary: 'Test GPS monitoring demo',
-    description: 'Start a demo simulation with sample data',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Demo started successfully',
-  })
-  async testDemo() {
-    // This is a demo endpoint - in a real scenario, you would use actual driver/vehicle/route IDs
-    try {
-      // Start simulation with sample data
-      const simulation = await this.gpsSimulatorService.startDriverSimulation(
-        '507f1f77bcf86cd799439011', // Sample driver ID
-        '507f1f77bcf86cd799439012', // Sample vehicle ID
-        '688308c4d08c2cdb8fd30c10', // Your actual route ID
-      );
 
-      return {
-        message: 'GPS monitoring demo started successfully',
-        simulation,
-        instructions: [
-          '1. The simulation will update every 5 seconds',
-          '2. Check driver monitoring data at: GET /gps-monitoring/driver/507f1f77bcf86cd799439011',
-          '3. Check all drivers at: GET /gps-monitoring/drivers',
-          '4. Check deviations at: GET /gps-monitoring/deviations',
-          '5. Stop simulation at: DELETE /gps-monitoring/simulation/stop/507f1f77bcf86cd799439011',
-        ],
-      };
-    } catch (error) {
-      return {
-        message:
-          'Demo failed - make sure you have valid driver, vehicle, and route data',
-        error: error.message,
-        note: 'You need to create actual driver, vehicle, and route records first',
-      };
-    }
-  }
 
   @Get('alerts')
   @Roles(Role.ADMIN, Role.LOGISTICA)
