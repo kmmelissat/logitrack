@@ -51,14 +51,12 @@ export class VehicleController {
 
   @Get()
   @Roles(Role.ADMIN, Role.LOGISTICA, Role.CONDUCTOR)
-  @ApiOperation({ summary: 'Get all vehicles' })
+  @ApiOperation({ summary: 'Get all vehicles with summary' })
   @ApiResponse({
     status: 200,
-    description: 'Returns all vehicles',
+    description: 'Returns all vehicles with summary',
     type: [VehicleResponseDto],
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -76,21 +74,24 @@ export class VehicleController {
     description: 'Get only available (unassigned) vehicles',
     enum: ['true', 'false'],
   })
-  findAll(
+  async findAll(
     @Query('status') status?: string,
     @Query('driverId') driverId?: string,
     @Query('available') available?: string,
   ) {
+    let vehicles: any;
     if (available === 'true') {
-      return this.vehicleService.findAvailableVehicles();
+      vehicles = await this.vehicleService.findAvailableVehicles();
+    } else if (driverId) {
+      vehicles = await this.vehicleService.findByAssignedDriver(driverId);
+    } else if (status) {
+      vehicles = await this.vehicleService.findByStatus(status);
+    } else {
+      vehicles = await this.vehicleService.findAll();
     }
-    if (driverId) {
-      return this.vehicleService.findByAssignedDriver(driverId);
-    }
-    if (status) {
-      return this.vehicleService.findByStatus(status);
-    }
-    return this.vehicleService.findAll();
+
+    const resumen = await this.vehicleService.getSummary();
+    return { resumen, vehicles };
   }
 
   @Get(':id')
@@ -166,59 +167,6 @@ export class VehicleController {
     return this.vehicleService.assignVehicle(id, assignmentDto);
   }
 
-  @Get(':id/available')
-  @Roles(Role.ADMIN, Role.LOGISTICA)
-  @ApiOperation({ summary: 'Check if vehicle is available for assignment' })
-  @ApiResponse({
-    status: 200,
-    description: 'Vehicle availability status',
-    schema: {
-      type: 'object',
-      properties: {
-        available: { type: 'boolean' },
-        message: { type: 'string' },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Vehicle not found' })
-  async checkVehicleAvailability(@Param('id') id: string) {
-    const available = await this.vehicleService.isVehicleAvailable(id);
-    return {
-      available,
-      message: available
-        ? 'Vehicle is available for assignment'
-        : 'Vehicle is not available for assignment',
-    };
-  }
-
-  @Get('driver/:driverId/available')
-  @Roles(Role.ADMIN, Role.LOGISTICA)
-  @ApiOperation({ summary: 'Check if driver is available for assignment' })
-  @ApiResponse({
-    status: 200,
-    description: 'Driver availability status',
-    schema: {
-      type: 'object',
-      properties: {
-        available: { type: 'boolean' },
-        message: { type: 'string' },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async checkDriverAvailability(@Param('driverId') driverId: string) {
-    const available = await this.vehicleService.isDriverAvailable(driverId);
-    return {
-      available,
-      message: available
-        ? 'Driver is available for assignment'
-        : 'Driver is already assigned to a vehicle',
-    };
-  }
-
   @Patch(':id/unassign')
   @Roles(Role.ADMIN, Role.LOGISTICA)
   @ApiOperation({ summary: 'Unassign vehicle from driver' })
@@ -264,3 +212,4 @@ export class VehicleController {
     return this.vehicleService.remove(id);
   }
 }
+

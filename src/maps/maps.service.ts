@@ -70,41 +70,6 @@ export class MapsService {
     return apiKey;
   }
 
-  async testGoogleMapsAPI(): Promise<boolean> {
-    try {
-      this.logger.log('Testing Google Maps API...');
-
-      // Test with two known points (San Francisco to Los Angeles)
-      const response = await this.client.directions({
-        params: {
-          origin: 'San Francisco, CA',
-          destination: 'Los Angeles, CA',
-          mode: TravelMode.driving,
-          key: this.getApiKey(),
-        },
-      });
-
-      this.logger.log(`Test API Response Status: ${response.data.status}`);
-
-      if (response.data.status === 'OK' && response.data.routes.length > 0) {
-        const route = response.data.routes[0];
-        const leg = route.legs[0];
-        this.logger.log(
-          `Test successful: ${leg.distance.text}, ${leg.duration.text}`,
-        );
-        return true;
-      } else {
-        this.logger.error(
-          `Test failed: ${response.data.status} - ${response.data.error_message || 'No error message'}`,
-        );
-        return false;
-      }
-    } catch (error) {
-      this.logger.error(`Test API error: ${error.message}`);
-      return false;
-    }
-  }
-
   async calculateDistance(
     origin: string,
     destination: string,
