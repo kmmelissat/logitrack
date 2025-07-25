@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { GpsEventService } from './gps-event.service';
 import { GpsEventController } from './gps-event.controller';
+import { GpsSimulatorService } from './gps-simulator.service';
+import { GpsMonitoringController } from './gps-monitoring.controller';
 import { GpsEvent, GpsEventSchema } from './entities/gps-event.entity';
 import {
   RoutePoint,
@@ -24,8 +26,8 @@ import { User, UserSchema } from '../users/entities/user.entity';
       { name: User.name, schema: UserSchema },
     ]),
   ],
-  controllers: [GpsEventController],
-  providers: [GpsEventService],
-  exports: [GpsEventService],
+  controllers: [GpsEventController, GpsMonitoringController],
+  providers: [GpsEventService, GpsSimulatorService],
+  exports: [GpsEventService, GpsSimulatorService],
 })
 export class GpsEventModule {}
