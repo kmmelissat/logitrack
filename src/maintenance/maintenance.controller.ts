@@ -41,8 +41,8 @@ export class MaintenanceController {
     type: VehicleMaintenanceResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Vehicle or maintenance not found' })
-  getMaintenanceByVehicle(@Param('id') id: string) {
-    return this.maintenanceService.findByVehicle(id);
+  getMaintenanceByVehicle(@Param('vehicleId') vehicleId: string) {
+    return this.maintenanceService.findByVehicle(vehicleId);
   }
 
   @Post('/vehicles/:vehicleId/maintenance')
@@ -56,12 +56,12 @@ export class MaintenanceController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   createMaintenanceForVehicle(
-    @Param('id') id: string,
+    @Param('vehicleId') vehicleId: string,
     @Body() createMaintenanceDto: CreateMaintenanceDto,
   ) {
     return this.maintenanceService.create({
       ...createMaintenanceDto,
-      vehicleId: id,
+      vehicleId: vehicleId,
     });
   }
 
